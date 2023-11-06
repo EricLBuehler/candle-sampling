@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"candle_sampling":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.73.0/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"enum\" href=\"candle_sampling/logits_processor/enum.SamplingMethod.html\" title=\"enum candle_sampling::logits_processor::SamplingMethod\">SamplingMethod</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
