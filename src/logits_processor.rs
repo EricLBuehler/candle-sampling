@@ -29,17 +29,17 @@ pub enum SamplingMethod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 // Top-n logprobs element
 pub struct TopLogprob {
-    token: usize,
-    logprob: f32,
-    bytes: String,
+    pub token: usize,
+    pub logprob: f32,
+    pub bytes: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Logprobs {
-    token: usize,
-    logprob: f32,
-    bytes: String,
-    top_logprobs: Vec<TopLogprob>,
+    pub token: usize,
+    pub logprob: f32,
+    pub bytes: String,
+    pub top_logprobs: Vec<TopLogprob>,
 }
 
 impl<'a> LogitsProcessor<'a> {
