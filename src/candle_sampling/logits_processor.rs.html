@@ -259,17 +259,17 @@
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="comment">// Top-n logprobs element
 </span><span class="kw">pub struct </span>TopLogprob {
-    token: usize,
-    logprob: f32,
-    bytes: String,
+    <span class="kw">pub </span>token: usize,
+    <span class="kw">pub </span>logprob: f32,
+    <span class="kw">pub </span>bytes: String,
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Logprobs {
-    token: usize,
-    logprob: f32,
-    bytes: String,
-    top_logprobs: Vec&lt;TopLogprob&gt;,
+    <span class="kw">pub </span>token: usize,
+    <span class="kw">pub </span>logprob: f32,
+    <span class="kw">pub </span>bytes: String,
+    <span class="kw">pub </span>top_logprobs: Vec&lt;TopLogprob&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; LogitsProcessor&lt;<span class="lifetime">&#39;a</span>&gt; {
