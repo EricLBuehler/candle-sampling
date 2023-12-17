@@ -9,3 +9,5 @@ edition = "2021"
 candle-core = { git = "https://github.com/huggingface/candle.git", version = "0.3.0" }
 candle-nn = { git = "https://github.com/huggingface/candle.git", version = "0.3.0" }
 rand = "0.8.5"
+serde = "1.0.193"
+tokenizers = "0.15.0"
