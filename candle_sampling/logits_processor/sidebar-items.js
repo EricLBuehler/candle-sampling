@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SamplingMethod"],"struct":["LogitsProcessor"]};
+window.SIDEBAR_ITEMS = {"enum":["SamplingMethod"],"struct":["LogitsProcessor","Logprobs","TopLogprob"]};
