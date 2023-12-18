@@ -226,8 +226,6 @@
 <a href="#226" id="226">226</a>
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::iter::zip;
 
 <span class="kw">use </span>candle_core::{DType, Error, <span class="prelude-ty">Result</span>, Tensor};
@@ -306,12 +304,11 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>sorted = logits_v.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        <span class="kw">let </span>top_n_toks_range = next_token + <span class="number">1
-            </span>..<span class="kw">if </span>next_token + <span class="number">1 </span>+ <span class="self">self</span>.top_n_logprobs &lt;= logits_v.len() {
-                next_token + <span class="number">1 </span>+ <span class="self">self</span>.top_n_logprobs
-            } <span class="kw">else </span>{
-                logits_v.len()
-            };
+        <span class="kw">let </span>top_n_toks_range = next_token..<span class="kw">if </span>next_token + <span class="self">self</span>.top_n_logprobs &lt;= logits_v.len() {
+            next_token + <span class="self">self</span>.top_n_logprobs
+        } <span class="kw">else </span>{
+            logits_v.len()
+        };
         <span class="kw">let </span>top_n_toks = top_n_toks_range.clone().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
             .iter()
@@ -351,12 +348,11 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>sorted = probs.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        <span class="kw">let </span>top_n_toks_range = next_token + <span class="number">1
-            </span>..<span class="kw">if </span>next_token + <span class="number">1 </span>+ <span class="self">self</span>.top_n_logprobs &lt;= probs.len() {
-                next_token + <span class="number">1 </span>+ <span class="self">self</span>.top_n_logprobs
-            } <span class="kw">else </span>{
-                probs.len()
-            };
+        <span class="kw">let </span>top_n_toks_range = next_token..<span class="kw">if </span>next_token + <span class="self">self</span>.top_n_logprobs &lt;= probs.len() {
+            next_token + <span class="self">self</span>.top_n_logprobs
+        } <span class="kw">else </span>{
+            probs.len()
+        };
         <span class="kw">let </span>top_n_toks = top_n_toks_range.clone().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
             .iter()
