@@ -76,12 +76,11 @@ impl<'a> LogitsProcessor<'a> {
 
         let mut sorted = logits_v.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let top_n_toks_range = next_token + 1
-            ..if next_token + 1 + self.top_n_logprobs <= logits_v.len() {
-                next_token + 1 + self.top_n_logprobs
-            } else {
-                logits_v.len()
-            };
+        let top_n_toks_range = next_token..if next_token + self.top_n_logprobs <= logits_v.len() {
+            next_token + self.top_n_logprobs
+        } else {
+            logits_v.len()
+        };
         let top_n_toks = top_n_toks_range.clone().collect::<Vec<_>>();
         let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
@@ -121,12 +120,11 @@ impl<'a> LogitsProcessor<'a> {
 
         let mut sorted = probs.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let top_n_toks_range = next_token + 1
-            ..if next_token + 1 + self.top_n_logprobs <= probs.len() {
-                next_token + 1 + self.top_n_logprobs
-            } else {
-                probs.len()
-            };
+        let top_n_toks_range = next_token..if next_token + self.top_n_logprobs <= probs.len() {
+            next_token + self.top_n_logprobs
+        } else {
+            probs.len()
+        };
         let top_n_toks = top_n_toks_range.clone().collect::<Vec<_>>();
         let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
