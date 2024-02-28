@@ -1,6 +1,6 @@
 use std::iter::zip;
 
-use candle_core::{DType, Error, Result, Tensor};
+use candle_core::{bail, DType, Error, Result, Tensor};
 use rand::{distributions::Distribution, SeedableRng};
 use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
@@ -12,6 +12,7 @@ pub struct LogitsProcessor {
     sampling_method: SamplingMethod,
     top_n_logprobs: usize,
     tokenizer: Tokenizer,
+    repeat_penalty: f32,
 }
 
 /// Sampling method for `LogitsProcessor`.
@@ -49,6 +50,7 @@ impl LogitsProcessor {
         sampling_method: SamplingMethod,
         top_n_logprobs: usize,
         tokenizer: Tokenizer,
+        repeat_penalty: Option<f32>,
     ) -> Self {
         let temperature = if temperature.map_or(true, |v| v < 1e-7) {
             None
@@ -61,6 +63,7 @@ impl LogitsProcessor {
             sampling_method,
             top_n_logprobs,
             tokenizer,
+            repeat_penalty: repeat_penalty.unwrap_or(1.),
         }
     }
 
@@ -200,8 +203,28 @@ impl LogitsProcessor {
     ///
     /// If the temperature is `None`, argmax sampling is used. Otherwise, the selected sampling is used.
     /// With `top-p` sampling, if the `top-p` value is `<= 0.0` or `>= 1.0`, multinomial sampling is used.
-    pub fn sample(&mut self, logits: &Tensor) -> Result<Logprobs> {
+    /// If `repeat_penalty` != 1, then `repeat_penalty_ctxt` must be provided.
+    pub fn sample(
+        &mut self,
+        logits: &Tensor,
+        repeat_penalty_ctxt: Option<&[u32]>,
+    ) -> Result<Logprobs> {
         let logits = logits.to_dtype(DType::F32)?;
+
+        let logits = if self.repeat_penalty == 1. {
+            logits
+        } else {
+            if repeat_penalty_ctxt.is_none() {
+                bail!("Must specify repeat penalty context.");
+            }
+            candle_transformers::utils::apply_repeat_penalty(
+                &logits,
+                self.repeat_penalty,
+                &repeat_penalty_ctxt.unwrap(),
+            )
+            .unwrap()
+        };
+
         let next_token = match self.temperature {
             None => self.sample_argmax(logits)?,
             Some(temperature) => {
