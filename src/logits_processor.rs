@@ -220,7 +220,7 @@ impl LogitsProcessor {
             candle_transformers::utils::apply_repeat_penalty(
                 &logits,
                 self.repeat_penalty,
-                &repeat_penalty_ctxt.unwrap(),
+                repeat_penalty_ctxt.unwrap(),
             )
             .unwrap()
         };
