@@ -6,12 +6,12 @@ use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
 
 /// LogitsProcessor for sampling.
-pub struct LogitsProcessor<'a> {
+pub struct LogitsProcessor {
     rng: rand::rngs::StdRng,
     temperature: Option<f64>,
     sampling_method: SamplingMethod,
     top_n_logprobs: usize,
-    tokenizer: &'a Tokenizer,
+    tokenizer: Tokenizer,
 }
 
 /// Sampling method for `LogitsProcessor`.
@@ -42,13 +42,13 @@ pub struct Logprobs {
     pub top_logprobs: Vec<TopLogprob>,
 }
 
-impl<'a> LogitsProcessor<'a> {
+impl LogitsProcessor {
     pub fn new(
         seed: u64,
         temperature: Option<f64>,
         sampling_method: SamplingMethod,
         top_n_logprobs: usize,
-        tokenizer: &'a Tokenizer,
+        tokenizer: Tokenizer,
     ) -> Self {
         let temperature = if temperature.map_or(true, |v| v < 1e-7) {
             None
