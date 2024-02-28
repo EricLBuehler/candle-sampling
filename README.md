@@ -8,5 +8,6 @@ Currently implemented methods are:
 - multinomial
 - top-k
 - top-p
+- repeat penalty
 
 Beam search is being developed, but Candle's `Tensor` lacks necessary features for the implementation. See the issue [here](https://github.com/huggingface/candle/issues/1279).
