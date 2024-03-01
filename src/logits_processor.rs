@@ -254,37 +254,20 @@ impl LogitsProcessor {
         self.sample_multinomial(probs)
     }
 
-    fn apply_repeat_penalty(logits: &Tensor, penalty: f32, context: &[u32]) -> Result<Tensor> {
+    fn apply_repeat_presence_penalty(
+        logits: &Tensor,
+        presence_penalty: f32,
+        repeat_penalty: f32,
+        context: &[u32],
+    ) -> Result<Tensor> {
+        //mu[j] -> mu[j] - c[j] * alpha_frequency - float(c[j] > 0) * alpha_presence
         let device = logits.device();
         let mut logits = logits.to_vec1::<f32>()?;
-        let context: std::collections::HashSet<_> = context.iter().collect();
         for (token_id, logit) in logits.iter_mut().enumerate() {
-            if context.contains(&(token_id as u32)) {
-                if *logit >= 0. {
-                    *logit /= penalty
-                } else {
-                    *logit *= penalty
-                }
-            }
-        }
-        let logits_len = logits.len();
-        Tensor::from_vec(logits, logits_len, device)
-    }
-
-    fn apply_presence_penalty(logits: &Tensor, penalty: f32, context: &[u32]) -> Result<Tensor> {
-        let device = logits.device();
-        let mut logits = logits.to_vec1::<f32>()?;
-        let context: std::collections::HashSet<_> = context.iter().collect();
-        let mut found = std::collections::HashSet::new();
-        for (token_id, logit) in logits.iter_mut().enumerate() {
-            if context.contains(&(token_id as u32)) && !found.contains(&token_id) {
-                if *logit >= 0. {
-                    *logit /= penalty
-                } else {
-                    *logit *= penalty
-                }
-                found.insert(token_id);
-            }
+            let count = context.iter().filter(|x| **x as usize == token_id).count();
+            *logit = *logit
+                - count as f32 * repeat_penalty
+                - if count > 0 { 1. } else { 0. } * presence_penalty;
         }
         let logits_len = logits.len();
         Tensor::from_vec(logits, logits_len, device)
@@ -298,27 +281,18 @@ impl LogitsProcessor {
     pub fn sample(&mut self, logits: &Tensor, penalty_ctxt: Option<&[u32]>) -> Result<Logprobs> {
         let logits = logits.to_dtype(DType::F32)?;
 
-        let logits = match (self.repeat_penalty, self.presence_penalty) {
-            (Some(repeat), Some(presence)) => {
-                if penalty_ctxt.is_none() {
-                    bail!("Must specify penalty context.");
-                }
-                let logits = Self::apply_repeat_penalty(&logits, repeat, penalty_ctxt.unwrap())?;
-                Self::apply_presence_penalty(&logits, presence, penalty_ctxt.unwrap())?
+        let logits = if self.repeat_penalty.is_none() && self.presence_penalty.is_none() {
+            logits
+        } else {
+            if penalty_ctxt.is_none() {
+                bail!("Must specify penalty context.");
             }
-            (Some(repeat), None) => {
-                if penalty_ctxt.is_none() {
-                    bail!("Must specify penalty context.");
-                }
-                Self::apply_repeat_penalty(&logits, repeat, penalty_ctxt.unwrap())?
-            }
-            (None, Some(presence)) => {
-                if penalty_ctxt.is_none() {
-                    bail!("Must specify penalty context.");
-                }
-                Self::apply_presence_penalty(&logits, presence, penalty_ctxt.unwrap())?
-            }
-            (None, None) => logits,
+            Self::apply_repeat_presence_penalty(
+                &logits,
+                self.presence_penalty.unwrap_or(0.),
+                self.repeat_penalty.unwrap_or(0.),
+                penalty_ctxt.unwrap(),
+            )?
         };
 
         let next_token = match self.temperature {
