@@ -8,5 +8,6 @@ Currently implemented methods are:
 - multinomial (ancestral)
 - top-k
 - top-p (nucleus)
-- repeat penalty
 - top-n logprobs
+- repeat penalty (frequency penalty)
+- presence penalty

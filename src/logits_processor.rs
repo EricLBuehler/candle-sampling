@@ -15,7 +15,8 @@ pub struct LogitsProcessor {
     sampling_method: SamplingMethod,
     top_n_logprobs: usize,
     tokenizer: Tokenizer,
-    repeat_penalty: f32,
+    repeat_penalty: Option<f32>,
+    presence_penalty: Option<f32>,
 }
 
 /// Sampling method for `LogitsProcessor`.
@@ -54,6 +55,7 @@ impl LogitsProcessor {
         top_n_logprobs: usize,
         tokenizer: Tokenizer,
         repeat_penalty: Option<f32>,
+        presence_penalty: Option<f32>,
     ) -> Self {
         let temperature = if temperature.map_or(true, |v| v < 1e-7) {
             None
@@ -66,7 +68,8 @@ impl LogitsProcessor {
             sampling_method,
             top_n_logprobs,
             tokenizer,
-            repeat_penalty: repeat_penalty.unwrap_or(1.),
+            repeat_penalty,
+            presence_penalty,
         }
     }
 
@@ -251,30 +254,71 @@ impl LogitsProcessor {
         self.sample_multinomial(probs)
     }
 
+    fn apply_repeat_penalty(logits: &Tensor, penalty: f32, context: &[u32]) -> Result<Tensor> {
+        let device = logits.device();
+        let mut logits = logits.to_vec1::<f32>()?;
+        let context: std::collections::HashSet<_> = context.iter().collect();
+        for (token_id, logit) in logits.iter_mut().enumerate() {
+            if context.contains(&(token_id as u32)) {
+                if *logit >= 0. {
+                    *logit /= penalty
+                } else {
+                    *logit *= penalty
+                }
+            }
+        }
+        let logits_len = logits.len();
+        Tensor::from_vec(logits, logits_len, device)
+    }
+
+    fn apply_presence_penalty(logits: &Tensor, penalty: f32, context: &[u32]) -> Result<Tensor> {
+        let device = logits.device();
+        let mut logits = logits.to_vec1::<f32>()?;
+        let context: std::collections::HashSet<_> = context.iter().collect();
+        let mut found = std::collections::HashSet::new();
+        for (token_id, logit) in logits.iter_mut().enumerate() {
+            if context.contains(&(token_id as u32)) && !found.contains(&token_id) {
+                if *logit >= 0. {
+                    *logit /= penalty
+                } else {
+                    *logit *= penalty
+                }
+                found.insert(token_id);
+            }
+        }
+        let logits_len = logits.len();
+        Tensor::from_vec(logits, logits_len, device)
+    }
+
     /// Sample the provided tokens.
     ///
     /// If the temperature is `None`, argmax sampling is used. Otherwise, the selected sampling is used.
     /// With `top-p` sampling, if the `top-p` value is `<= 0.0` or `>= 1.0`, multinomial sampling is used.
-    /// If `repeat_penalty` != 1, then `repeat_penalty_ctxt` must be provided.
-    pub fn sample(
-        &mut self,
-        logits: &Tensor,
-        repeat_penalty_ctxt: Option<&[u32]>,
-    ) -> Result<Logprobs> {
+    /// If `repeat_penalty.is_some()` or `presence_penalty.is_some()`, then `penalty_ctxt` must be provided.
+    pub fn sample(&mut self, logits: &Tensor, penalty_ctxt: Option<&[u32]>) -> Result<Logprobs> {
         let logits = logits.to_dtype(DType::F32)?;
 
-        let logits = if self.repeat_penalty == 1. {
-            logits
-        } else {
-            if repeat_penalty_ctxt.is_none() {
-                bail!("Must specify repeat penalty context.");
+        let logits = match (self.repeat_penalty, self.presence_penalty) {
+            (Some(repeat), Some(presence)) => {
+                if penalty_ctxt.is_none() {
+                    bail!("Must specify penalty context.");
+                }
+                let logits = Self::apply_repeat_penalty(&logits, repeat, penalty_ctxt.unwrap())?;
+                Self::apply_presence_penalty(&logits, presence, penalty_ctxt.unwrap())?
             }
-            candle_transformers::utils::apply_repeat_penalty(
-                &logits,
-                self.repeat_penalty,
-                repeat_penalty_ctxt.unwrap(),
-            )
-            .unwrap()
+            (Some(repeat), None) => {
+                if penalty_ctxt.is_none() {
+                    bail!("Must specify penalty context.");
+                }
+                Self::apply_repeat_penalty(&logits, repeat, penalty_ctxt.unwrap())?
+            }
+            (None, Some(presence)) => {
+                if penalty_ctxt.is_none() {
+                    bail!("Must specify penalty context.");
+                }
+                Self::apply_presence_penalty(&logits, presence, penalty_ctxt.unwrap())?
+            }
+            (None, None) => logits,
         };
 
         let next_token = match self.temperature {
