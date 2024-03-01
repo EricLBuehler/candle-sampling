@@ -96,8 +96,8 @@ impl LogitsProcessor {
                     Ordering::Greater
                 }
             })
-            .unwrap(); // It was certainly found.
-                       // These are where the top n are
+            .unwrap_err();
+        // These are where the top n are
         let top_n_toks_range =
             next_token_index.saturating_sub(self.top_n_logprobs)..=next_token_index;
         // The top n's values
@@ -116,7 +116,7 @@ impl LogitsProcessor {
                         Ordering::Greater
                     }
                 })
-                .unwrap(); // It was certainly found.
+                .unwrap_err();
             top_n_toks.push(idx);
         }
 
@@ -164,8 +164,8 @@ impl LogitsProcessor {
                     Ordering::Greater
                 }
             })
-            .unwrap(); // It was certainly found.
-                       // These are where the top n are
+            .unwrap_err();
+        // These are where the top n are
         let top_n_toks_range =
             next_token_index.saturating_sub(self.top_n_logprobs)..=next_token_index;
         // The top n's values
@@ -184,7 +184,7 @@ impl LogitsProcessor {
                         Ordering::Greater
                     }
                 })
-                .unwrap(); // It was certainly found.
+                .unwrap_err();
             top_n_toks.push(idx);
         }
 
