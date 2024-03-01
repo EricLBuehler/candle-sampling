@@ -418,8 +418,8 @@
                     Ordering::Greater
                 }
             })
-            .unwrap(); <span class="comment">// It was certainly found.
-                       // These are where the top n are
+            .unwrap_err();
+        <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range =
             next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..=next_token_index;
         <span class="comment">// The top n's values
@@ -438,8 +438,8 @@
                         Ordering::Greater
                     }
                 })
-                .unwrap(); <span class="comment">// It was certainly found.
-            </span>top_n_toks.push(idx);
+                .unwrap_err();
+            top_n_toks.push(idx);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
@@ -486,8 +486,8 @@
                     Ordering::Greater
                 }
             })
-            .unwrap(); <span class="comment">// It was certainly found.
-                       // These are where the top n are
+            .unwrap_err();
+        <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range =
             next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..=next_token_index;
         <span class="comment">// The top n's values
@@ -506,8 +506,8 @@
                         Ordering::Greater
                     }
                 })
-                .unwrap(); <span class="comment">// It was certainly found.
-            </span>top_n_toks.push(idx);
+                .unwrap_err();
+            top_n_toks.push(idx);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
