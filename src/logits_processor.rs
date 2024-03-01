@@ -99,7 +99,7 @@ impl LogitsProcessor {
             .unwrap_err();
         // These are where the top n are
         let top_n_toks_range =
-            next_token_index.saturating_sub(self.top_n_logprobs)..=next_token_index;
+            next_token_index.saturating_sub(self.top_n_logprobs)..next_token_index;
         // The top n's values
         let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
@@ -167,7 +167,7 @@ impl LogitsProcessor {
             .unwrap_err();
         // These are where the top n are
         let top_n_toks_range =
-            next_token_index.saturating_sub(self.top_n_logprobs)..=next_token_index;
+            next_token_index.saturating_sub(self.top_n_logprobs)..next_token_index;
         // The top n's values
         let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
