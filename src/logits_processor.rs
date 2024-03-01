@@ -124,7 +124,7 @@ impl LogitsProcessor {
         for tok in &top_n_toks {
             bytes.push(
                 self.tokenizer
-                    .decode(&[(*tok).try_into().unwrap()], true)
+                    .decode(&[*tok], true)
                     .map_err(|x| Error::Msg(x.to_string()))?,
             );
         }
@@ -192,7 +192,7 @@ impl LogitsProcessor {
         for tok in &top_n_toks {
             bytes.push(
                 self.tokenizer
-                    .decode(&[(*tok).try_into().unwrap()], true)
+                    .decode(&[*tok], true)
                     .map_err(|x| Error::Msg(x.to_string()))?,
             );
         }
