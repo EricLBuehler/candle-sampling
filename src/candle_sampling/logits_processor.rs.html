@@ -356,14 +356,14 @@
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="comment">// Top-n logprobs element
 </span><span class="kw">pub struct </span>TopLogprob {
-    <span class="kw">pub </span>token: usize,
+    <span class="kw">pub </span>token: u32,
     <span class="kw">pub </span>logprob: f32,
     <span class="kw">pub </span>bytes: String,
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Logprobs {
-    <span class="kw">pub </span>token: usize,
+    <span class="kw">pub </span>token: u32,
     <span class="kw">pub </span>logprob: f32,
     <span class="kw">pub </span>bytes: String,
     <span class="kw">pub </span>top_logprobs: Vec&lt;TopLogprob&gt;,
@@ -439,7 +439,7 @@
                     }
                 })
                 .unwrap_err();
-            top_n_toks.push(idx);
+            top_n_toks.push(idx <span class="kw">as </span>u32);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
@@ -459,7 +459,7 @@
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="prelude-val">Ok</span>(Logprobs {
-            token: next_token,
+            token: next_token <span class="kw">as </span>u32,
             logprob,
             top_logprobs,
             bytes: <span class="self">self
@@ -507,7 +507,7 @@
                     }
                 })
                 .unwrap_err();
-            top_n_toks.push(idx);
+            top_n_toks.push(idx <span class="kw">as </span>u32);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
@@ -527,7 +527,7 @@
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="prelude-val">Ok</span>(Logprobs {
-            token: next_token,
+            token: next_token <span class="kw">as </span>u32,
             logprob,
             top_logprobs,
             bytes: <span class="self">self
