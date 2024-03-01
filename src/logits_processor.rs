@@ -34,14 +34,14 @@ pub enum SamplingMethod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 // Top-n logprobs element
 pub struct TopLogprob {
-    pub token: usize,
+    pub token: u32,
     pub logprob: f32,
     pub bytes: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Logprobs {
-    pub token: usize,
+    pub token: u32,
     pub logprob: f32,
     pub bytes: String,
     pub top_logprobs: Vec<TopLogprob>,
@@ -117,7 +117,7 @@ impl LogitsProcessor {
                     }
                 })
                 .unwrap_err();
-            top_n_toks.push(idx);
+            top_n_toks.push(idx as u32);
         }
 
         let mut bytes = Vec::new();
@@ -137,7 +137,7 @@ impl LogitsProcessor {
             .collect::<Vec<_>>();
 
         Ok(Logprobs {
-            token: next_token,
+            token: next_token as u32,
             logprob,
             top_logprobs,
             bytes: self
@@ -185,7 +185,7 @@ impl LogitsProcessor {
                     }
                 })
                 .unwrap_err();
-            top_n_toks.push(idx);
+            top_n_toks.push(idx as u32);
         }
 
         let mut bytes = Vec::new();
@@ -205,7 +205,7 @@ impl LogitsProcessor {
             .collect::<Vec<_>>();
 
         Ok(Logprobs {
-            token: next_token,
+            token: next_token as u32,
             logprob,
             top_logprobs,
             bytes: self
