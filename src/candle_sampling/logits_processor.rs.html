@@ -421,7 +421,7 @@
             .unwrap_err();
         <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range =
-            next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..=next_token_index;
+            next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..next_token_index;
         <span class="comment">// The top n's values
         </span><span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
             .iter()
@@ -489,7 +489,7 @@
             .unwrap_err();
         <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range =
-            next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..=next_token_index;
+            next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..next_token_index;
         <span class="comment">// The top n's values
         </span><span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
             .iter()
