@@ -5,9 +5,8 @@
 Sampling techniques for Candle.
 
 Currently implemented methods are:
-- multinomial
+- multinomial (ancestral)
 - top-k
-- top-p
+- top-p (nucleus)
 - repeat penalty
-
-Beam search is being developed, but Candle's `Tensor` lacks necessary features for the implementation. See the issue [here](https://github.com/huggingface/candle/issues/1279).
+- top-n logprobs

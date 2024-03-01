@@ -1,7 +1,10 @@
-use std::iter::zip;
+use std::{cmp::Ordering, iter::zip};
 
 use candle_core::{bail, DType, Error, Result, Tensor};
-use rand::{distributions::Distribution, SeedableRng};
+use rand::{
+    distributions::{Distribution, WeightedIndex},
+    SeedableRng,
+};
 use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
 
@@ -69,6 +72,7 @@ impl LogitsProcessor {
 
     fn sample_argmax(&mut self, logits: Tensor) -> Result<Logprobs> {
         let logits_v: Vec<f32> = logits.to_vec1()?;
+
         let next_token = logits_v
             .iter()
             .enumerate()
@@ -76,19 +80,43 @@ impl LogitsProcessor {
             .map(|(i, _)| i)
             .unwrap();
         let logprob = logits_v[next_token].log(10.0);
+        let tok = logits_v[next_token];
 
         let mut sorted = logits_v.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let top_n_toks_range = next_token..if next_token + self.top_n_logprobs <= logits_v.len() {
-            next_token + self.top_n_logprobs
-        } else {
-            logits_v.len()
-        };
-        let top_n_toks = top_n_toks_range.clone().collect::<Vec<_>>();
+        // Where the next token is in the sorted
+        let next_token_index = sorted
+            .binary_search_by(|w| {
+                if *w <= tok {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            })
+            .unwrap(); // It was certainly found.
+                       // These are where the top n are
+        let top_n_toks_range =
+            next_token_index.saturating_sub(self.top_n_logprobs)..=next_token_index;
+        // The top n's values
         let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
             .map(|x| x.log(10.0))
             .collect::<Vec<_>>();
+        // Find where they actually are in the logits
+        let mut top_n_toks = Vec::new();
+        for val in top_n_logprobs.iter() {
+            let idx = logits_v
+                .binary_search_by(|w| {
+                    if *w <= *val {
+                        Ordering::Less
+                    } else {
+                        Ordering::Greater
+                    }
+                })
+                .unwrap(); // It was certainly found.
+            top_n_toks.push(idx);
+        }
+
         let mut bytes = Vec::new();
         for tok in &top_n_toks {
             bytes.push(
@@ -117,22 +145,46 @@ impl LogitsProcessor {
     }
 
     fn sample_multinomial(&mut self, probs: &Vec<f32>) -> Result<Logprobs> {
-        let distr = rand::distributions::WeightedIndex::new(probs).map_err(Error::wrap)?;
-        let next_token = distr.sample(&mut self.rng);
+        let distr = WeightedIndex::new(probs).map_err(Error::wrap)?;
+        let next_token = distr.sample(&mut self.rng); // "Find the first item which has a weight *higher* than the chosen weight."
         let logprob = probs[next_token].log(10.0);
+        let tok = probs[next_token];
 
         let mut sorted = probs.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let top_n_toks_range = next_token..if next_token + self.top_n_logprobs <= probs.len() {
-            next_token + self.top_n_logprobs
-        } else {
-            probs.len()
-        };
-        let top_n_toks = top_n_toks_range.clone().collect::<Vec<_>>();
+        // Where the next token is in the sorted
+        let next_token_index = sorted
+            .binary_search_by(|w| {
+                if *w <= tok {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            })
+            .unwrap(); // It was certainly found.
+                       // These are where the top n are
+        let top_n_toks_range =
+            next_token_index.saturating_sub(self.top_n_logprobs)..=next_token_index;
+        // The top n's values
         let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
             .map(|x| x.log(10.0))
             .collect::<Vec<_>>();
+        // Find where they actually are in the logits
+        let mut top_n_toks = Vec::new();
+        for val in top_n_logprobs.iter() {
+            let idx = probs
+                .binary_search_by(|w| {
+                    if *w <= *val {
+                        Ordering::Less
+                    } else {
+                        Ordering::Greater
+                    }
+                })
+                .unwrap(); // It was certainly found.
+            top_n_toks.push(idx);
+        }
+
         let mut bytes = Vec::new();
         for tok in &top_n_toks {
             bytes.push(
