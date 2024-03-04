@@ -24,11 +24,13 @@ pub struct LogitsProcessor {
 /// - Multinomial (sample over all tokens)
 /// - Top-P (nucleus sampling)
 /// - Top-K (top-k sampling)
+/// - Top-KP (both, top k first then top p)
 #[derive(Debug, Clone)]
 pub enum SamplingMethod {
     Multinomial,
     TopP(f64),
     TopK(usize),
+    TopKP((usize, f64)),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -254,6 +256,42 @@ impl LogitsProcessor {
         self.sample_multinomial(probs)
     }
 
+    fn sample_topkp(&mut self, probs: &mut Vec<f32>, top_k: usize, top_p: f32) -> Result<Logprobs> {
+        // Sort probs into descending order (highest probs first)
+        probs.sort_by(|x, y| x.total_cmp(y));
+        probs.reverse();
+
+        // TOP K
+        // Clamp smaller probabilities to zero.
+        for (index, val) in probs.iter_mut().enumerate() {
+            if index >= top_k {
+                *val = 0.0;
+            }
+        }
+
+        // TOP P
+        // top-p sampling (or "nucleus sampling") samples from the smallest set of
+        // tokens that exceed probability top_p. This way we never sample tokens that
+        // have very low probabilities and are less likely to go "off the rails".
+        let mut argsort_indices = (0..probs.len()).collect::<Vec<_>>();
+
+        // Sort by descending probability.
+        argsort_indices.sort_by(|&i, &j| probs[j].partial_cmp(&probs[i]).unwrap());
+
+        // Clamp smaller probabilities to zero.
+        let mut cumsum = 0.;
+        for index in &argsort_indices {
+            if cumsum >= top_p {
+                probs[*index] = 0.0;
+            } else {
+                cumsum += probs[*index];
+            }
+        }
+
+        // Sample with clamped probabilities.
+        self.sample_multinomial(probs)
+    }
+
     fn apply_repeat_presence_penalty(
         logits: &Tensor,
         presence_penalty: f32,
@@ -313,6 +351,9 @@ impl LogitsProcessor {
                         }
                     }
                     SamplingMethod::TopK(top_k) => self.sample_topk(&mut probs, top_k)?,
+                    SamplingMethod::TopKP((top_k, top_p)) => {
+                        self.sample_topkp(&mut probs, top_k, top_p as f32)?
+                    }
                 }
             }
         };
