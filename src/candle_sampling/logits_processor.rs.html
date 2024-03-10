@@ -361,7 +361,32 @@
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
 <a href="#362" id="362">362</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, iter::zip};
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
 <span class="kw">use </span>rand::{
@@ -380,6 +405,7 @@
     tokenizer: Tokenizer,
     repeat_penalty: <span class="prelude-ty">Option</span>&lt;f32&gt;,
     presence_penalty: <span class="prelude-ty">Option</span>&lt;f32&gt;,
+    logits_bias: <span class="prelude-ty">Option</span>&lt;HashMap&lt;u32, f32&gt;&gt;,
 }
 
 <span class="doccomment">/// Sampling method for `LogitsProcessor`.
@@ -413,7 +439,8 @@
 }
 
 <span class="kw">impl </span>LogitsProcessor {
-    <span class="kw">pub fn </span>new(
+    <span class="attr">#[allow(clippy::too_many_arguments)]
+    </span><span class="kw">pub fn </span>new(
         seed: u64,
         temperature: <span class="prelude-ty">Option</span>&lt;f64&gt;,
         sampling_method: SamplingMethod,
@@ -421,6 +448,7 @@
         tokenizer: Tokenizer,
         repeat_penalty: <span class="prelude-ty">Option</span>&lt;f32&gt;,
         presence_penalty: <span class="prelude-ty">Option</span>&lt;f32&gt;,
+        logits_bias: <span class="prelude-ty">Option</span>&lt;HashMap&lt;u32, f32&gt;&gt;,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>temperature = <span class="kw">if </span>temperature.map_or(<span class="bool-val">true</span>, |v| v &lt; <span class="number">1e-7</span>) {
             <span class="prelude-val">None
@@ -435,11 +463,31 @@
             tokenizer,
             repeat_penalty,
             presence_penalty,
+            logits_bias,
         }
     }
 
+    <span class="kw">fn </span>apply_logit_bias(<span class="kw-2">&amp;</span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>[f32]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>bias) = <span class="self">self</span>.logits_bias {
+            <span class="kw">for </span>(id, bias_v) <span class="kw">in </span>bias {
+                <span class="kw">let </span>idx = probs.get_mut(<span class="kw-2">*</span>id <span class="kw">as </span>usize);
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(idx) = idx {
+                    <span class="kw-2">*</span>idx += bias_v;
+                } <span class="kw">else </span>{
+                    <span class="macro">candle_core::bail!</span>(
+                        <span class="string">"Token ID `{id}` out of range for probs of length `{}`."</span>,
+                        probs.len()
+                    );
+                }
+            }
+        }
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="kw">fn </span>sample_argmax(<span class="kw-2">&amp;mut </span><span class="self">self</span>, logits: Tensor) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="kw">let </span>logits_v: Vec&lt;f32&gt; = logits.to_vec1()<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>logits_v: Vec&lt;f32&gt; = logits.to_vec1()<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.apply_logit_bias(<span class="kw-2">&amp;mut </span>logits_v)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>next_token = logits_v
             .iter()
@@ -512,8 +560,10 @@
         })
     }
 
-    <span class="kw">fn </span>sample_multinomial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;</span>Vec&lt;f32&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="kw">let </span>distr = WeightedIndex::new(probs).map_err(Error::wrap)<span class="question-mark">?</span>;
+    <span class="kw">fn </span>sample_multinomial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
+        <span class="self">self</span>.apply_logit_bias(probs)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>distr = WeightedIndex::new(<span class="kw-2">&amp;*</span>probs).map_err(Error::wrap)<span class="question-mark">?</span>;
         <span class="kw">let </span>next_token = distr.sample(<span class="kw-2">&amp;mut </span><span class="self">self</span>.rng); <span class="comment">// "Find the first item which has a weight *higher* than the chosen weight."
         </span><span class="kw">let </span>logprob = probs[next_token].log(<span class="number">10.0</span>);
         <span class="kw">let </span>tok = probs[next_token];
@@ -703,11 +753,11 @@
                 <span class="kw">let </span>probs = candle_nn::ops::softmax_last_dim(<span class="kw-2">&amp;</span>logits)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>probs: Vec&lt;f32&gt; = probs.to_vec1()<span class="question-mark">?</span>;
                 <span class="kw">match </span><span class="self">self</span>.sampling_method {
-                    SamplingMethod::Multinomial =&gt; <span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;</span>probs)<span class="question-mark">?</span>,
+                    SamplingMethod::Multinomial =&gt; <span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs)<span class="question-mark">?</span>,
                     SamplingMethod::TopP(top_p) =&gt; {
                         <span class="kw">if </span>top_p &lt;= <span class="number">0.0 </span>|| top_p &gt;= <span class="number">1.0 </span>{
                             <span class="comment">// simply sample from the predicted probability distribution
-                            </span><span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;</span>probs)<span class="question-mark">?
+                            </span><span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs)<span class="question-mark">?
                         </span>} <span class="kw">else </span>{
                             <span class="comment">// top-p (nucleus) sampling, clamping the least likely tokens to zero
                             </span><span class="self">self</span>.sample_topp(<span class="kw-2">&amp;mut </span>probs, top_p <span class="kw">as </span>f32)<span class="question-mark">?
