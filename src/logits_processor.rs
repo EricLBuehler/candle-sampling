@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, iter::zip};
+use std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 use candle_core::{bail, DType, Error, Result, Tensor};
 use rand::{
@@ -17,6 +17,7 @@ pub struct LogitsProcessor {
     tokenizer: Tokenizer,
     repeat_penalty: Option<f32>,
     presence_penalty: Option<f32>,
+    logits_bias: Option<HashMap<u32, f32>>,
 }
 
 /// Sampling method for `LogitsProcessor`.
@@ -50,6 +51,7 @@ pub struct Logprobs {
 }
 
 impl LogitsProcessor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         seed: u64,
         temperature: Option<f64>,
@@ -58,6 +60,7 @@ impl LogitsProcessor {
         tokenizer: Tokenizer,
         repeat_penalty: Option<f32>,
         presence_penalty: Option<f32>,
+        logits_bias: Option<HashMap<u32, f32>>,
     ) -> Self {
         let temperature = if temperature.map_or(true, |v| v < 1e-7) {
             None
@@ -72,11 +75,31 @@ impl LogitsProcessor {
             tokenizer,
             repeat_penalty,
             presence_penalty,
+            logits_bias,
         }
     }
 
+    fn apply_logit_bias(&self, probs: &mut [f32]) -> Result<()> {
+        if let Some(ref bias) = self.logits_bias {
+            for (id, bias_v) in bias {
+                let idx = probs.get_mut(*id as usize);
+                if let Some(idx) = idx {
+                    *idx += bias_v;
+                } else {
+                    candle_core::bail!(
+                        "Token ID `{id}` out of range for probs of length `{}`.",
+                        probs.len()
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn sample_argmax(&mut self, logits: Tensor) -> Result<Logprobs> {
-        let logits_v: Vec<f32> = logits.to_vec1()?;
+        let mut logits_v: Vec<f32> = logits.to_vec1()?;
+
+        self.apply_logit_bias(&mut logits_v)?;
 
         let next_token = logits_v
             .iter()
@@ -149,8 +172,10 @@ impl LogitsProcessor {
         })
     }
 
-    fn sample_multinomial(&mut self, probs: &Vec<f32>) -> Result<Logprobs> {
-        let distr = WeightedIndex::new(probs).map_err(Error::wrap)?;
+    fn sample_multinomial(&mut self, probs: &mut Vec<f32>) -> Result<Logprobs> {
+        self.apply_logit_bias(probs)?;
+
+        let distr = WeightedIndex::new(&*probs).map_err(Error::wrap)?;
         let next_token = distr.sample(&mut self.rng); // "Find the first item which has a weight *higher* than the chosen weight."
         let logprob = probs[next_token].log(10.0);
         let tok = probs[next_token];
@@ -340,11 +365,11 @@ impl LogitsProcessor {
                 let probs = candle_nn::ops::softmax_last_dim(&logits)?;
                 let mut probs: Vec<f32> = probs.to_vec1()?;
                 match self.sampling_method {
-                    SamplingMethod::Multinomial => self.sample_multinomial(&probs)?,
+                    SamplingMethod::Multinomial => self.sample_multinomial(&mut probs)?,
                     SamplingMethod::TopP(top_p) => {
                         if top_p <= 0.0 || top_p >= 1.0 {
                             // simply sample from the predicted probability distribution
-                            self.sample_multinomial(&probs)?
+                            self.sample_multinomial(&mut probs)?
                         } else {
                             // top-p (nucleus) sampling, clamping the least likely tokens to zero
                             self.sample_topp(&mut probs, top_p as f32)?

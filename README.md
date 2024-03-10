@@ -11,3 +11,4 @@ Currently implemented methods are:
 - top-n logprobs
 - repeat penalty (frequency penalty)
 - presence penalty
+- logit bias
