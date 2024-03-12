@@ -249,7 +249,7 @@ impl LogitsProcessor {
         let mut argsort_indices = (0..probs.len()).collect::<Vec<_>>();
 
         // Sort by descending probability.
-        dbg!(&argsort_indices);
+        dbg!(&probs);
         argsort_indices.sort_by(|&i, &j| probs[j].partial_cmp(&probs[i]).unwrap());
 
         // Clamp smaller probabilities to zero.
