@@ -386,9 +386,19 @@
 <a href="#385" id="385">385</a>
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
-<span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
+<span class="kw">use </span>candle_core::{bail, DType, Device, Error, <span class="prelude-ty">Result</span>, Tensor, D};
 <span class="kw">use </span>rand::{
     distributions::{Distribution, WeightedIndex},
     SeedableRng,
@@ -422,17 +432,17 @@
     TopKP((usize, f64)),
 }
 
-<span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
+<span class="attr">#[derive(Debug, Clone)]
 </span><span class="comment">// Top-n logprobs element
 </span><span class="kw">pub struct </span>TopLogprob {
-    <span class="kw">pub </span>token: u32,
+    <span class="kw">pub </span>token: Tensor,
     <span class="kw">pub </span>logprob: f32,
     <span class="kw">pub </span>bytes: String,
 }
 
-<span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
+<span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Logprobs {
-    <span class="kw">pub </span>token: u32,
+    <span class="kw">pub </span>token: Tensor,
     <span class="kw">pub </span>logprob: f32,
     <span class="kw">pub </span>bytes: String,
     <span class="kw">pub </span>top_logprobs: Vec&lt;TopLogprob&gt;,
@@ -467,310 +477,320 @@
         }
     }
 
-    <span class="kw">fn </span>apply_logit_bias(<span class="kw-2">&amp;</span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>[f32]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>bias) = <span class="self">self</span>.logits_bias {
-            <span class="kw">for </span>(id, bias_v) <span class="kw">in </span>bias {
-                <span class="kw">let </span>idx = probs.get_mut(<span class="kw-2">*</span>id <span class="kw">as </span>usize);
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(idx) = idx {
-                    <span class="kw-2">*</span>idx += bias_v;
-                } <span class="kw">else </span>{
-                    <span class="macro">candle_core::bail!</span>(
-                        <span class="string">"Token ID `{id}` out of range for probs of length `{}`."</span>,
+    <span class="comment">/*fn apply_logit_bias(&amp;self, probs: &amp;mut [f32]) -&gt; Result&lt;()&gt; {
+        if let Some(ref bias) = self.logits_bias {
+            for (id, bias_v) in bias {
+                let idx = probs.get_mut(*id as usize);
+                if let Some(idx) = idx {
+                    *idx += bias_v;
+                } else {
+                    candle_core::bail!(
+                        "Token ID `{id}` out of range for probs of length `{}`.",
                         probs.len()
                     );
                 }
             }
         }
-        <span class="prelude-val">Ok</span>(())
+        Ok(())
     }
 
-    <span class="kw">fn </span>sample_argmax(<span class="kw-2">&amp;mut </span><span class="self">self</span>, logits: Tensor) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>logits_v: Vec&lt;f32&gt; = logits.to_vec1()<span class="question-mark">?</span>;
+    fn sample_argmax(&amp;mut self, logits: Tensor) -&gt; Result&lt;Logprobs&gt; {
+        let mut logits_v: Vec&lt;f32&gt; = logits.to_vec1()?;
 
-        <span class="self">self</span>.apply_logit_bias(<span class="kw-2">&amp;mut </span>logits_v)<span class="question-mark">?</span>;
+        self.apply_logit_bias(&amp;mut logits_v)?;
 
-        <span class="kw">let </span>next_token = logits_v
+        let next_token = logits_v
             .iter()
             .enumerate()
-            .max_by(|(<span class="kw">_</span>, u), (<span class="kw">_</span>, v)| u.total_cmp(v))
-            .map(|(i, <span class="kw">_</span>)| i)
+            .max_by(|(_, u), (_, v)| u.total_cmp(v))
+            .map(|(i, _)| i)
             .unwrap();
-        <span class="kw">let </span>logprob = logits_v[next_token].log(<span class="number">10.0</span>);
-        <span class="kw">let </span>tok = logits_v[next_token];
+        let logprob = logits_v[next_token].log(10.0);
+        let tok = logits_v[next_token];
 
-        <span class="kw">let </span><span class="kw-2">mut </span>sorted = logits_v.clone();
+        let mut sorted = logits_v.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        <span class="comment">// Where the next token is in the sorted
-        </span><span class="kw">let </span>next_token_index = sorted
+        // Where the next token is in the sorted
+        let next_token_index = sorted
             .binary_search_by(|w| {
-                <span class="kw">if </span><span class="kw-2">*</span>w &lt;= tok {
+                if *w &lt;= tok {
                     Ordering::Less
-                } <span class="kw">else </span>{
+                } else {
                     Ordering::Greater
                 }
             })
             .unwrap_err();
-        <span class="comment">// These are where the top n are
-        </span><span class="kw">let </span>top_n_toks_range =
-            next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..next_token_index;
-        <span class="comment">// The top n's values
-        </span><span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
+        // These are where the top n are
+        let top_n_toks_range =
+            next_token_index.saturating_sub(self.top_n_logprobs)..next_token_index;
+        // The top n's values
+        let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
-            .map(|x| x.log(<span class="number">10.0</span>))
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-        <span class="comment">// Find where they actually are in the logits
-        </span><span class="kw">let </span><span class="kw-2">mut </span>top_n_toks = Vec::new();
-        <span class="kw">for </span>val <span class="kw">in </span>top_n_logprobs.iter() {
-            <span class="kw">let </span>idx = logits_v
+            .map(|x| x.log(10.0))
+            .collect::&lt;Vec&lt;_&gt;&gt;();
+        // Find where they actually are in the logits
+        let mut top_n_toks = Vec::new();
+        for val in top_n_logprobs.iter() {
+            let idx = logits_v
                 .binary_search_by(|w| {
-                    <span class="kw">if </span><span class="kw-2">*</span>w &lt;= <span class="kw-2">*</span>val {
+                    if *w &lt;= *val {
                         Ordering::Less
-                    } <span class="kw">else </span>{
+                    } else {
                         Ordering::Greater
                     }
                 })
                 .unwrap_err();
-            top_n_toks.push(idx <span class="kw">as </span>u32);
+            top_n_toks.push(idx as u32);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
-        <span class="kw">for </span>tok <span class="kw">in </span><span class="kw-2">&amp;</span>top_n_toks {
+        let mut bytes = Vec::new();
+        for tok in &amp;top_n_toks {
             bytes.push(
-                <span class="self">self</span>.tokenizer
-                    .decode(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>tok], <span class="bool-val">true</span>)
-                    .map_err(|x| Error::Msg(x.to_string()))<span class="question-mark">?</span>,
+                self.tokenizer
+                    .decode(&amp;[*tok], true)
+                    .map_err(|x| Error::Msg(x.to_string()))?,
             );
         }
-        <span class="kw">let </span>top_logprobs = zip(bytes, zip(top_n_toks, top_n_logprobs))
+        let top_logprobs = zip(bytes, zip(top_n_toks, top_n_logprobs))
             .map(|(bytes, (token, logprob))| TopLogprob {
                 token,
                 logprob,
                 bytes,
             })
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            .collect::&lt;Vec&lt;_&gt;&gt;();
 
-        <span class="prelude-val">Ok</span>(Logprobs {
-            token: next_token <span class="kw">as </span>u32,
+        Ok(Logprobs {
+            token: next_token as u32,
             logprob,
             top_logprobs,
-            bytes: <span class="self">self
-                </span>.tokenizer
-                .decode(<span class="kw-2">&amp;</span>[next_token.try_into().unwrap()], <span class="bool-val">true</span>)
-                .map_err(|x| Error::Msg(x.to_string()))<span class="question-mark">?</span>,
+            bytes: self
+                .tokenizer
+                .decode(&amp;[next_token.try_into().unwrap()], true)
+                .map_err(|x| Error::Msg(x.to_string()))?,
         })
     }
 
-    <span class="kw">fn </span>sample_multinomial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="self">self</span>.apply_logit_bias(probs)<span class="question-mark">?</span>;
+    fn sample_multinomial(&amp;mut self, probs: &amp;mut Vec&lt;f32&gt;) -&gt; Result&lt;Logprobs&gt; {
+        self.apply_logit_bias(probs)?;
 
-        <span class="kw">let </span>distr = WeightedIndex::new(<span class="kw-2">&amp;*</span>probs).map_err(Error::wrap)<span class="question-mark">?</span>;
-        <span class="kw">let </span>next_token = distr.sample(<span class="kw-2">&amp;mut </span><span class="self">self</span>.rng); <span class="comment">// "Find the first item which has a weight *higher* than the chosen weight."
-        </span><span class="kw">let </span>logprob = probs[next_token].log(<span class="number">10.0</span>);
-        <span class="kw">let </span>tok = probs[next_token];
+        let distr = WeightedIndex::new(&amp;*probs).map_err(Error::wrap)?;
+        let next_token = distr.sample(&amp;mut self.rng); // "Find the first item which has a weight *higher* than the chosen weight."
+        let logprob = probs[next_token].log(10.0);
+        let tok = probs[next_token];
 
-        <span class="kw">let </span><span class="kw-2">mut </span>sorted = probs.clone();
+        let mut sorted = probs.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        <span class="comment">// Where the next token is in the sorted
-        </span><span class="kw">let </span>next_token_index = sorted
+        // Where the next token is in the sorted
+        let next_token_index = sorted
             .binary_search_by(|w| {
-                <span class="kw">if </span><span class="kw-2">*</span>w &lt;= tok {
+                if *w &lt;= tok {
                     Ordering::Less
-                } <span class="kw">else </span>{
+                } else {
                     Ordering::Greater
                 }
             })
             .unwrap_err();
-        <span class="comment">// These are where the top n are
-        </span><span class="kw">let </span>top_n_toks_range =
-            next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..next_token_index;
-        <span class="comment">// The top n's values
-        </span><span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
+        // These are where the top n are
+        let top_n_toks_range =
+            next_token_index.saturating_sub(self.top_n_logprobs)..next_token_index;
+        // The top n's values
+        let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
-            .map(|x| x.log(<span class="number">10.0</span>))
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-        <span class="comment">// Find where they actually are in the logits
-        </span><span class="kw">let </span><span class="kw-2">mut </span>top_n_toks = Vec::new();
-        <span class="kw">for </span>val <span class="kw">in </span>top_n_logprobs.iter() {
-            <span class="kw">let </span>idx = probs
+            .map(|x| x.log(10.0))
+            .collect::&lt;Vec&lt;_&gt;&gt;();
+        // Find where they actually are in the logits
+        let mut top_n_toks = Vec::new();
+        for val in top_n_logprobs.iter() {
+            let idx = probs
                 .binary_search_by(|w| {
-                    <span class="kw">if </span><span class="kw-2">*</span>w &lt;= <span class="kw-2">*</span>val {
+                    if *w &lt;= *val {
                         Ordering::Less
-                    } <span class="kw">else </span>{
+                    } else {
                         Ordering::Greater
                     }
                 })
                 .unwrap_err();
-            top_n_toks.push(idx <span class="kw">as </span>u32);
+            top_n_toks.push(idx as u32);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
-        <span class="kw">for </span>tok <span class="kw">in </span><span class="kw-2">&amp;</span>top_n_toks {
+        let mut bytes = Vec::new();
+        for tok in &amp;top_n_toks {
             bytes.push(
-                <span class="self">self</span>.tokenizer
-                    .decode(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>tok], <span class="bool-val">true</span>)
-                    .map_err(|x| Error::Msg(x.to_string()))<span class="question-mark">?</span>,
+                self.tokenizer
+                    .decode(&amp;[*tok], true)
+                    .map_err(|x| Error::Msg(x.to_string()))?,
             );
         }
-        <span class="kw">let </span>top_logprobs = zip(bytes, zip(top_n_toks, top_n_logprobs))
+        let top_logprobs = zip(bytes, zip(top_n_toks, top_n_logprobs))
             .map(|(bytes, (token, logprob))| TopLogprob {
                 token,
                 logprob,
                 bytes,
             })
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            .collect::&lt;Vec&lt;_&gt;&gt;();
 
-        <span class="prelude-val">Ok</span>(Logprobs {
-            token: next_token <span class="kw">as </span>u32,
+        Ok(Logprobs {
+            token: next_token as u32,
             logprob,
             top_logprobs,
-            bytes: <span class="self">self
-                </span>.tokenizer
-                .decode(<span class="kw-2">&amp;</span>[next_token.try_into().unwrap()], <span class="bool-val">true</span>)
-                .map_err(|x| Error::Msg(x.to_string()))<span class="question-mark">?</span>,
+            bytes: self
+                .tokenizer
+                .decode(&amp;[next_token.try_into().unwrap()], true)
+                .map_err(|x| Error::Msg(x.to_string()))?,
         })
     }
 
-    <span class="kw">fn </span>sample_topp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_p: f32) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="comment">// top-p sampling (or "nucleus sampling") samples from the smallest set of
-        // tokens that exceed probability top_p. This way we never sample tokens that
-        // have very low probabilities and are less likely to go "off the rails".
-        </span><span class="kw">let </span><span class="kw-2">mut </span>argsort_indices = (<span class="number">0</span>..probs.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-        <span class="comment">// Sort by descending probability.
-        </span>argsort_indices.sort_by(|<span class="kw-2">&amp;</span>i, <span class="kw-2">&amp;</span>j| probs[j].partial_cmp(<span class="kw-2">&amp;</span>probs[i]).unwrap());
-
-        <span class="comment">// Clamp smaller probabilities to zero.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>cumsum = <span class="number">0.</span>;
-        <span class="kw">for </span>index <span class="kw">in </span><span class="kw-2">&amp;</span>argsort_indices {
-            <span class="kw">if </span>cumsum &gt;= top_p {
-                probs[<span class="kw-2">*</span>index] = <span class="number">0.0</span>;
-            } <span class="kw">else </span>{
-                cumsum += probs[<span class="kw-2">*</span>index];
-            }
-        }
-
-        <span class="comment">// Sample with clamped probabilities.
-        </span><span class="self">self</span>.sample_multinomial(probs)
-    }
-
-    <span class="kw">fn </span>sample_topk(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_k: usize) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="comment">// Sort probs into descending order (highest probs first)
-        </span>probs.sort_by(|x, y| x.total_cmp(y));
-        probs.reverse();
-
-        <span class="comment">// Clamp smaller probabilities to zero.
-        </span><span class="kw">for </span>(index, val) <span class="kw">in </span>probs.iter_mut().enumerate() {
-            <span class="kw">if </span>index &gt;= top_k {
-                <span class="kw-2">*</span>val = <span class="number">0.0</span>;
-            }
-        }
-
-        <span class="comment">// Sample with clamped probabilities.
-        </span><span class="self">self</span>.sample_multinomial(probs)
-    }
-
-    <span class="kw">fn </span>sample_topkp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_k: usize, top_p: f32) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="comment">// Sort probs into descending order (highest probs first)
-        </span>probs.sort_by(|x, y| x.total_cmp(y));
-        probs.reverse();
-
-        <span class="comment">// TOP K
-        // Clamp smaller probabilities to zero.
-        </span><span class="kw">for </span>(index, val) <span class="kw">in </span>probs.iter_mut().enumerate() {
-            <span class="kw">if </span>index &gt;= top_k {
-                <span class="kw-2">*</span>val = <span class="number">0.0</span>;
-            }
-        }
-
-        <span class="comment">// TOP P
+    fn sample_topp(&amp;mut self, probs: &amp;mut Vec&lt;f32&gt;, top_p: f32) -&gt; Result&lt;Logprobs&gt; {
         // top-p sampling (or "nucleus sampling") samples from the smallest set of
         // tokens that exceed probability top_p. This way we never sample tokens that
         // have very low probabilities and are less likely to go "off the rails".
-        </span><span class="kw">let </span><span class="kw-2">mut </span>argsort_indices = (<span class="number">0</span>..probs.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        let mut argsort_indices = (0..probs.len()).collect::&lt;Vec&lt;_&gt;&gt;();
 
-        <span class="comment">// Sort by descending probability.
-        </span>argsort_indices.sort_by(|<span class="kw-2">&amp;</span>i, <span class="kw-2">&amp;</span>j| probs[j].partial_cmp(<span class="kw-2">&amp;</span>probs[i]).unwrap());
+        // Sort by descending probability.
+        argsort_indices.sort_by(|&amp;i, &amp;j| probs[j].partial_cmp(&amp;probs[i]).unwrap());
 
-        <span class="comment">// Clamp smaller probabilities to zero.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>cumsum = <span class="number">0.</span>;
-        <span class="kw">for </span>index <span class="kw">in </span><span class="kw-2">&amp;</span>argsort_indices {
-            <span class="kw">if </span>cumsum &gt;= top_p {
-                probs[<span class="kw-2">*</span>index] = <span class="number">0.0</span>;
-            } <span class="kw">else </span>{
-                cumsum += probs[<span class="kw-2">*</span>index];
+        // Clamp smaller probabilities to zero.
+        let mut cumsum = 0.;
+        for index in &amp;argsort_indices {
+            if cumsum &gt;= top_p {
+                probs[*index] = 0.0;
+            } else {
+                cumsum += probs[*index];
             }
         }
 
-        <span class="comment">// Sample with clamped probabilities.
-        </span><span class="self">self</span>.sample_multinomial(probs)
+        // Sample with clamped probabilities.
+        self.sample_multinomial(probs)
     }
 
-    <span class="kw">fn </span>apply_repeat_presence_penalty(
-        logits: <span class="kw-2">&amp;</span>Tensor,
+    fn sample_topk(&amp;mut self, probs: &amp;mut Vec&lt;f32&gt;, top_k: usize) -&gt; Result&lt;Logprobs&gt; {
+        // Sort probs into descending order (highest probs first)
+        probs.sort_by(|x, y| x.total_cmp(y));
+        probs.reverse();
+
+        // Clamp smaller probabilities to zero.
+        for (index, val) in probs.iter_mut().enumerate() {
+            if index &gt;= top_k {
+                *val = 0.0;
+            }
+        }
+
+        // Sample with clamped probabilities.
+        self.sample_multinomial(probs)
+    }
+
+    fn sample_topkp(&amp;mut self, probs: &amp;mut Vec&lt;f32&gt;, top_k: usize, top_p: f32) -&gt; Result&lt;Logprobs&gt; {
+        // Sort probs into descending order (highest probs first)
+        probs.sort_by(|x, y| x.total_cmp(y));
+        probs.reverse();
+
+        // TOP K
+        // Clamp smaller probabilities to zero.
+        for (index, val) in probs.iter_mut().enumerate() {
+            if index &gt;= top_k {
+                *val = 0.0;
+            }
+        }
+
+        // TOP P
+        // top-p sampling (or "nucleus sampling") samples from the smallest set of
+        // tokens that exceed probability top_p. This way we never sample tokens that
+        // have very low probabilities and are less likely to go "off the rails".
+        let mut argsort_indices = (0..probs.len()).collect::&lt;Vec&lt;_&gt;&gt;();
+
+        // Sort by descending probability.
+        argsort_indices.sort_by(|&amp;i, &amp;j| probs[j].partial_cmp(&amp;probs[i]).unwrap());
+
+        // Clamp smaller probabilities to zero.
+        let mut cumsum = 0.;
+        for index in &amp;argsort_indices {
+            if cumsum &gt;= top_p {
+                probs[*index] = 0.0;
+            } else {
+                cumsum += probs[*index];
+            }
+        }
+
+        // Sample with clamped probabilities.
+        self.sample_multinomial(probs)
+    }
+
+    fn apply_repeat_presence_penalty(
+        logits: &amp;Tensor,
         presence_penalty: f32,
         repeat_penalty: f32,
-        context: <span class="kw-2">&amp;</span>[u32],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Tensor&gt; {
-        <span class="comment">//mu[j] -&gt; mu[j] - c[j] * alpha_frequency - float(c[j] &gt; 0) * alpha_presence
-        </span><span class="kw">let </span>device = logits.device();
-        <span class="kw">let </span><span class="kw-2">mut </span>logits = logits.to_vec1::&lt;f32&gt;()<span class="question-mark">?</span>;
-        <span class="kw">for </span>(token_id, logit) <span class="kw">in </span>logits.iter_mut().enumerate() {
-            <span class="kw">let </span>count = context.iter().filter(|x| <span class="kw-2">**</span>x <span class="kw">as </span>usize == token_id).count();
-            <span class="kw-2">*</span>logit = <span class="kw-2">*</span>logit
-                - count <span class="kw">as </span>f32 * repeat_penalty
-                - <span class="kw">if </span>count &gt; <span class="number">0 </span>{ <span class="number">1. </span>} <span class="kw">else </span>{ <span class="number">0. </span>} * presence_penalty;
+        context: &amp;[u32],
+    ) -&gt; Result&lt;Tensor&gt; {
+        //mu[j] -&gt; mu[j] - c[j] * alpha_frequency - float(c[j] &gt; 0) * alpha_presence
+        let device = logits.device();
+        let mut logits = logits.to_vec1::&lt;f32&gt;()?;
+        for (token_id, logit) in logits.iter_mut().enumerate() {
+            let count = context.iter().filter(|x| **x as usize == token_id).count();
+            *logit = *logit
+                - count as f32 * repeat_penalty
+                - if count &gt; 0 { 1. } else { 0. } * presence_penalty;
         }
-        <span class="kw">let </span>logits_len = logits.len();
+        let logits_len = logits.len();
         Tensor::from_vec(logits, logits_len, device)
     }
 
-    <span class="doccomment">/// Sample the provided tokens.
+    /// Sample the provided tokens.
     ///
     /// If the temperature is `None`, argmax sampling is used. Otherwise, the selected sampling is used.
     /// With `top-p` sampling, if the `top-p` value is `&lt;= 0.0` or `&gt;= 1.0`, multinomial sampling is used.
     /// If `repeat_penalty.is_some()` or `presence_penalty.is_some()`, then `penalty_ctxt` must be provided.
-    </span><span class="kw">pub fn </span>sample(<span class="kw-2">&amp;mut </span><span class="self">self</span>, logits: <span class="kw-2">&amp;</span>Tensor, penalty_ctxt: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[u32]&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="kw">let </span>logits = logits.to_dtype(DType::F32)<span class="question-mark">?</span>;
+    pub fn sample(&amp;mut self, logits: &amp;Tensor, penalty_ctxt: Option&lt;&amp;[u32]&gt;) -&gt; Result&lt;Logprobs&gt; {
+        let logits = logits.to_dtype(DType::F32)?;
 
-        <span class="kw">let </span>logits = <span class="kw">if </span><span class="self">self</span>.repeat_penalty.is_none() &amp;&amp; <span class="self">self</span>.presence_penalty.is_none() {
+        let logits = if self.repeat_penalty.is_none() &amp;&amp; self.presence_penalty.is_none() {
             logits
-        } <span class="kw">else </span>{
-            <span class="kw">if </span>penalty_ctxt.is_none() {
-                <span class="macro">bail!</span>(<span class="string">"Must specify penalty context."</span>);
+        } else {
+            if penalty_ctxt.is_none() {
+                bail!("Must specify penalty context.");
             }
-            <span class="self">Self</span>::apply_repeat_presence_penalty(
-                <span class="kw-2">&amp;</span>logits,
-                <span class="self">self</span>.presence_penalty.unwrap_or(<span class="number">0.</span>),
-                <span class="self">self</span>.repeat_penalty.unwrap_or(<span class="number">0.</span>),
+            Self::apply_repeat_presence_penalty(
+                &amp;logits,
+                self.presence_penalty.unwrap_or(0.),
+                self.repeat_penalty.unwrap_or(0.),
                 penalty_ctxt.unwrap(),
-            )<span class="question-mark">?
-        </span>};
+            )?
+        };
 
-        <span class="kw">let </span>next_token = <span class="kw">match </span><span class="self">self</span>.temperature {
-            <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.sample_argmax(logits)<span class="question-mark">?</span>,
-            <span class="prelude-val">Some</span>(temperature) =&gt; {
-                <span class="kw">let </span>logits = (<span class="kw-2">&amp;</span>logits / temperature)<span class="question-mark">?</span>;
-                <span class="kw">let </span>probs = candle_nn::ops::softmax_last_dim(<span class="kw-2">&amp;</span>logits)<span class="question-mark">?</span>;
-                <span class="kw">let </span><span class="kw-2">mut </span>probs: Vec&lt;f32&gt; = probs.to_vec1()<span class="question-mark">?</span>;
-                <span class="kw">match </span><span class="self">self</span>.sampling_method {
-                    SamplingMethod::Multinomial =&gt; <span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs)<span class="question-mark">?</span>,
+        let next_token = match self.temperature {
+            None =&gt; self.sample_argmax(logits)?,
+            Some(temperature) =&gt; {
+                let logits = (&amp;logits / temperature)?;
+                let probs = candle_nn::ops::softmax_last_dim(&amp;logits)?;
+                let mut probs: Vec&lt;f32&gt; = probs.to_vec1()?;
+                match self.sampling_method {
+                    SamplingMethod::Multinomial =&gt; self.sample_multinomial(&amp;mut probs)?,
                     SamplingMethod::TopP(top_p) =&gt; {
-                        <span class="kw">if </span>top_p &lt;= <span class="number">0.0 </span>|| top_p &gt;= <span class="number">1.0 </span>{
-                            <span class="comment">// simply sample from the predicted probability distribution
-                            </span><span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs)<span class="question-mark">?
-                        </span>} <span class="kw">else </span>{
-                            <span class="comment">// top-p (nucleus) sampling, clamping the least likely tokens to zero
-                            </span><span class="self">self</span>.sample_topp(<span class="kw-2">&amp;mut </span>probs, top_p <span class="kw">as </span>f32)<span class="question-mark">?
-                        </span>}
+                        if top_p &lt;= 0.0 || top_p &gt;= 1.0 {
+                            // simply sample from the predicted probability distribution
+                            self.sample_multinomial(&amp;mut probs)?
+                        } else {
+                            // top-p (nucleus) sampling, clamping the least likely tokens to zero
+                            self.sample_topp(&amp;mut probs, top_p as f32)?
+                        }
                     }
-                    SamplingMethod::TopK(top_k) =&gt; <span class="self">self</span>.sample_topk(<span class="kw-2">&amp;mut </span>probs, top_k)<span class="question-mark">?</span>,
+                    SamplingMethod::TopK(top_k) =&gt; self.sample_topk(&amp;mut probs, top_k)?,
                     SamplingMethod::TopKP((top_k, top_p)) =&gt; {
-                        <span class="self">self</span>.sample_topkp(<span class="kw-2">&amp;mut </span>probs, top_k, top_p <span class="kw">as </span>f32)<span class="question-mark">?
-                    </span>}
+                        self.sample_topkp(&amp;mut probs, top_k, top_p as f32)?
+                    }
                 }
             }
         };
-        <span class="prelude-val">Ok</span>(next_token)
+        Ok(next_token)
+    }*/
+
+    </span><span class="kw">pub fn </span>sample(<span class="kw-2">&amp;mut </span><span class="self">self</span>, logits: <span class="kw-2">&amp;</span>Tensor, penalty_ctxt: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[u32]&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
+        <span class="kw">let </span>logits = logits.to_dtype(DType::F32)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(Logprobs {
+            token: logits.argmax(D::Minus1)<span class="question-mark">?</span>,
+            logprob: <span class="number">0.0</span>,
+            bytes: <span class="string">""</span>.to_string(),
+            top_logprobs: <span class="macro">vec!</span>[],
+        })
     }
 }
 </code></pre></div></section></main></body></html>
