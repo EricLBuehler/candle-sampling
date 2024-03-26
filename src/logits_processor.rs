@@ -85,10 +85,13 @@ impl LogitsProcessor {
     /// With `top-p` sampling, if the `top-p` value is `<= 0.0` or `>= 1.0`, multinomial sampling is used.
     /// If `repeat_penalty.is_some()` or `presence_penalty.is_some()`, then `penalty_ctxt` must be provided.
     pub fn sample(&mut self, logits: &Tensor, _penalty_ctxt: Option<&[u32]>) -> Result<Logprobs> {
-        let logits = logits.to_dtype(DType::F32)?;
+        /*let logits = logits.to_dtype(DType::F32)?;
         let next_token = logits.argmax(D::Minus1)?.to_scalar::<u32>()?;
         Ok(Logprobs {
             token: next_token,
+            ..Default::default()
+        })*/
+        Ok(Logprobs {
             ..Default::default()
         })
     }
