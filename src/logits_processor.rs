@@ -385,7 +385,7 @@ impl LogitsProcessor {
         Ok(next_token)
     }*/
 
-    pub fn sample(&mut self, logits: &Tensor, penalty_ctxt: Option<&[u32]>) -> Result<Logprobs> {
+    pub fn sample(&mut self, logits: &Tensor, penalty_ctxt: Option<&Tensor>) -> Result<Logprobs> {
         let logits = logits.to_dtype(DType::F32)?;
         Ok(Logprobs {
             token: logits.argmax(D::Minus1)?,
