@@ -387,13 +387,6 @@
 <a href="#385" id="385">385</a>
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
@@ -738,13 +731,6 @@
     /// With `top-p` sampling, if the `top-p` value is `&lt;= 0.0` or `&gt;= 1.0`, multinomial sampling is used.
     /// If `repeat_penalty.is_some()` or `presence_penalty.is_some()`, then `penalty_ctxt` must be provided.
     </span><span class="kw">pub fn </span>sample(<span class="kw-2">&amp;mut </span><span class="self">self</span>, logits: <span class="kw-2">&amp;</span>Tensor, penalty_ctxt: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[u32]&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(Logprobs {
-            token: <span class="number">0</span>,
-            logprob: <span class="number">0.0</span>,
-            bytes: <span class="string">""</span>.to_string(),
-            top_logprobs: <span class="macro">vec!</span>[]
-        });
-
         <span class="kw">let </span>logits = logits.to_dtype(DType::F32)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>logits = <span class="kw">if </span><span class="self">self</span>.repeat_penalty.is_none() &amp;&amp; <span class="self">self</span>.presence_penalty.is_none() {
