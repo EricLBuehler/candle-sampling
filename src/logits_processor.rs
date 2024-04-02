@@ -359,9 +359,8 @@ impl LogitsProcessor {
         let next_token = match self.temperature {
             None => self.sample_argmax(logits)?,
             Some(temperature) => {
-                dbg!(logits.mean_all());
+                dbg!(temperature);
                 let logits = (&logits / temperature)?;
-                dbg!(logits.mean_all());
                 let probs = candle_nn::ops::softmax_last_dim(&logits)?;
                 let mut probs: Vec<f32> = probs.to_vec1()?;
                 match self.sampling_method {
