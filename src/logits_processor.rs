@@ -292,6 +292,9 @@ impl LogitsProcessor {
             }
         }
 
+        if top_p <= 0.0 || top_p >= 1.0 {
+            return self.sample_multinomial(probs);
+        }
         // TOP P
         // top-p sampling (or "nucleus sampling") samples from the smallest set of
         // tokens that exceed probability top_p. This way we never sample tokens that
