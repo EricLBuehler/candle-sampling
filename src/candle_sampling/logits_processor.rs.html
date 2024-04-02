@@ -390,6 +390,7 @@
 <a href="#388" id="388">388</a>
 <a href="#389" id="389">389</a>
 <a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
@@ -675,14 +676,15 @@
     }
 
     <span class="kw">fn </span>sample_topkp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_k: usize, top_p: f32) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
-        <span class="comment">// Sort probs into descending order (highest probs first)
-        </span>probs.sort_by(|x, y| x.total_cmp(y));
+        <span class="kw">let </span><span class="kw-2">mut </span>argsort_indices = (<span class="number">0</span>..probs.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="comment">// TOP K
-        // Clamp smaller probabilities to zero.
-        </span><span class="kw">for </span>(index, val) <span class="kw">in </span>probs.iter_mut().enumerate() {
+        <span class="comment">// Sort by descending probability.
+        </span>argsort_indices.sort_by(|<span class="kw-2">&amp;</span>i, <span class="kw-2">&amp;</span>j| probs[j].partial_cmp(<span class="kw-2">&amp;</span>probs[i]).unwrap());
+
+        <span class="comment">// Clamp smaller probabilities to zero.
+        </span><span class="kw">for </span>(index, val) <span class="kw">in </span>argsort_indices.iter().enumerate() {
             <span class="kw">if </span>index &gt;= top_k {
-                <span class="kw-2">*</span>val = <span class="number">0.0</span>;
+                probs[<span class="kw-2">*</span>val] = <span class="number">0.0</span>;
             }
         }
 
