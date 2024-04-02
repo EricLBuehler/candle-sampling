@@ -268,7 +268,6 @@ impl LogitsProcessor {
     fn sample_topk(&mut self, probs: &mut Vec<f32>, top_k: usize) -> Result<Logprobs> {
         // Sort probs into descending order (highest probs first)
         probs.sort_by(|x, y| x.total_cmp(y));
-        //probs.reverse();
 
         // Clamp smaller probabilities to zero.
         for (index, val) in probs.iter_mut().enumerate() {
@@ -284,7 +283,6 @@ impl LogitsProcessor {
     fn sample_topkp(&mut self, probs: &mut Vec<f32>, top_k: usize, top_p: f32) -> Result<Logprobs> {
         // Sort probs into descending order (highest probs first)
         probs.sort_by(|x, y| x.total_cmp(y));
-        //probs.reverse();
 
         // TOP K
         // Clamp smaller probabilities to zero.
