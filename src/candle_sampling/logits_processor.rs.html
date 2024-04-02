@@ -657,9 +657,9 @@
     <span class="kw">fn </span>sample_topk(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_k: usize) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
         <span class="comment">// Sort probs into descending order (highest probs first)
         </span>probs.sort_by(|x, y| x.total_cmp(y));
-        probs.reverse();
+        <span class="comment">//probs.reverse();
 
-        <span class="comment">// Clamp smaller probabilities to zero.
+        // Clamp smaller probabilities to zero.
         </span><span class="kw">for </span>(index, val) <span class="kw">in </span>probs.iter_mut().enumerate() {
             <span class="kw">if </span>index &gt;= top_k {
                 <span class="kw-2">*</span>val = <span class="number">0.0</span>;
@@ -673,9 +673,9 @@
     <span class="kw">fn </span>sample_topkp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_k: usize, top_p: f32) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
         <span class="comment">// Sort probs into descending order (highest probs first)
         </span>probs.sort_by(|x, y| x.total_cmp(y));
-        probs.reverse();
+        <span class="comment">//probs.reverse();
 
-        <span class="comment">// TOP K
+        // TOP K
         // Clamp smaller probabilities to zero.
         </span><span class="kw">for </span>(index, val) <span class="kw">in </span>probs.iter_mut().enumerate() {
             <span class="kw">if </span>index &gt;= top_k {
