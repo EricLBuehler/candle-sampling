@@ -386,7 +386,6 @@
 <a href="#384" id="384">384</a>
 <a href="#385" id="385">385</a>
 <a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
@@ -748,9 +747,8 @@
         <span class="kw">let </span>next_token = <span class="kw">match </span><span class="self">self</span>.temperature {
             <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.sample_argmax(logits)<span class="question-mark">?</span>,
             <span class="prelude-val">Some</span>(temperature) =&gt; {
-                <span class="macro">dbg!</span>(logits.mean_all());
+                <span class="macro">dbg!</span>(temperature);
                 <span class="kw">let </span>logits = (<span class="kw-2">&amp;</span>logits / temperature)<span class="question-mark">?</span>;
-                <span class="macro">dbg!</span>(logits.mean_all());
                 <span class="kw">let </span>probs = candle_nn::ops::softmax_last_dim(<span class="kw-2">&amp;</span>logits)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>probs: Vec&lt;f32&gt; = probs.to_vec1()<span class="question-mark">?</span>;
                 <span class="kw">match </span><span class="self">self</span>.sampling_method {
