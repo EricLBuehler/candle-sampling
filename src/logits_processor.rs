@@ -172,7 +172,7 @@ impl LogitsProcessor {
         })
     }
 
-    fn sample_multinomial(&mut self, probs: &mut Vec<f32>) -> Result<Logprobs> {
+    fn sample_multinomial(&mut self, probs: &mut Vec<f32>, argsort_indices: Vec<usize>) -> Result<Logprobs> {
         self.apply_logit_bias(probs)?;
 
         let distr = WeightedIndex::new(&*probs).map_err(Error::wrap)?;
@@ -180,40 +180,21 @@ impl LogitsProcessor {
         let logprob = probs[next_token].log(10.0);
         let tok = probs[next_token];
 
-        let mut sorted = probs.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        // Where the next token is in the sorted
-        let next_token_index = sorted
-            .binary_search_by(|w| {
-                if *w <= tok {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            })
-            .unwrap_err();
+        let mut argsort_indices_sorted = argsort_indices.clone();
+        argsort_indices_sorted.sort_by(|a, b| probs[*a].partial_cmp(&probs[*b]).unwrap());
         // These are where the top n are
         let top_n_toks_range =
-            next_token_index.saturating_sub(self.top_n_logprobs)..next_token_index;
+            0..self.top_n_logprobs;
         dbg!(&top_n_toks_range);
         // The top n's values
-        let top_n_logprobs = sorted[top_n_toks_range]
+        let top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
             .iter()
-            .map(|x| x.log(10.0))
+            .map(|x| probs[*x].log(10.0))
             .collect::<Vec<_>>();
         // Find where they actually are in the logits
         let mut top_n_toks = Vec::new();
-        for val in top_n_logprobs.iter() {
-            let idx = probs
-                .binary_search_by(|w| {
-                    if *w <= *val {
-                        Ordering::Less
-                    } else {
-                        Ordering::Greater
-                    }
-                })
-                .unwrap_err();
-            top_n_toks.push(idx as u32);
+        for val in top_n_toks_range {
+            top_n_toks.push(argsort_indices[val]);
         }
 
         let mut bytes = Vec::new();
@@ -221,13 +202,13 @@ impl LogitsProcessor {
         for tok in &top_n_toks {
             bytes.push(
                 self.tokenizer
-                    .decode(&[*tok], true)
+                    .decode(&[*tok as u32], true)
                     .map_err(|x| Error::Msg(x.to_string()))?,
             );
         }
         let top_logprobs = zip(bytes, zip(top_n_toks, top_n_logprobs))
             .map(|(bytes, (token, logprob))| TopLogprob {
-                token,
+                token: token as u32,
                 logprob,
                 bytes,
             })
@@ -265,7 +246,7 @@ impl LogitsProcessor {
         }
 
         // Sample with clamped probabilities.
-        self.sample_multinomial(probs)
+        self.sample_multinomial(probs, argsort_indices)
     }
 
     fn sample_topk(&mut self, probs: &mut Vec<f32>, top_k: usize) -> Result<Logprobs> {
@@ -282,7 +263,7 @@ impl LogitsProcessor {
         }
 
         // Sample with clamped probabilities.
-        self.sample_multinomial(probs)
+        self.sample_multinomial(probs, argsort_indices)
     }
 
     fn sample_topkp(&mut self, probs: &mut Vec<f32>, top_k: usize, top_p: f32) -> Result<Logprobs> {
@@ -299,7 +280,7 @@ impl LogitsProcessor {
         }
 
         if top_p <= 0.0 || top_p >= 1.0 {
-            return self.sample_multinomial(probs);
+            return self.sample_multinomial(probs, argsort_indices);
         }
         // TOP P
         // top-p sampling (or "nucleus sampling") samples from the smallest set of
@@ -321,7 +302,7 @@ impl LogitsProcessor {
         }
 
         // Sample with clamped probabilities.
-        self.sample_multinomial(probs)
+        self.sample_multinomial(probs, argsort_indices)
     }
 
     fn apply_repeat_presence_penalty(
@@ -371,12 +352,13 @@ impl LogitsProcessor {
                 let logits = (&logits / temperature)?;
                 let probs = candle_nn::ops::softmax_last_dim(&logits)?;
                 let mut probs: Vec<f32> = probs.to_vec1()?;
+                let argsort_indices = (0..probs.len()).collect::<Vec<_>>();
                 match self.sampling_method {
-                    SamplingMethod::Multinomial => self.sample_multinomial(&mut probs)?,
+                    SamplingMethod::Multinomial => self.sample_multinomial(&mut probs, argsort_indices)?,
                     SamplingMethod::TopP(top_p) => {
                         if top_p <= 0.0 || top_p >= 1.0 {
                             // simply sample from the predicted probability distribution
-                            self.sample_multinomial(&mut probs)?
+                            self.sample_multinomial(&mut probs, argsort_indices)?
                         } else {
                             // top-p (nucleus) sampling, clamping the least likely tokens to zero
                             self.sample_topp(&mut probs, top_p as f32)?
