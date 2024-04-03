@@ -114,8 +114,7 @@ impl LogitsProcessor {
         // Sort by descending prob
         argsort_indices_sorted.sort_by(|a, b| probs[*b].partial_cmp(&probs[*a]).unwrap());
         // These are where the top n are
-        let top_n_toks_range =
-            0..self.top_n_logprobs;
+        let top_n_toks_range = 0..self.top_n_logprobs;
         dbg!(&top_n_toks_range);
         // The top n's values
         let top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
@@ -158,7 +157,11 @@ impl LogitsProcessor {
         })
     }
 
-    fn sample_multinomial(&mut self, probs: &mut Vec<f32>, argsort_indices: Vec<usize>) -> Result<Logprobs> {
+    fn sample_multinomial(
+        &mut self,
+        probs: &mut Vec<f32>,
+        argsort_indices: Vec<usize>,
+    ) -> Result<Logprobs> {
         self.apply_logit_bias(probs)?;
 
         let distr = WeightedIndex::new(&*probs).map_err(Error::wrap)?;
@@ -169,8 +172,7 @@ impl LogitsProcessor {
         // Sort by descending prob
         argsort_indices_sorted.sort_by(|a, b| probs[*b].partial_cmp(&probs[*a]).unwrap());
         // These are where the top n are
-        let top_n_toks_range =
-            0..self.top_n_logprobs;
+        let top_n_toks_range = 0..self.top_n_logprobs;
         dbg!(&top_n_toks_range);
         // The top n's values
         let top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
@@ -335,11 +337,19 @@ impl LogitsProcessor {
                 let logits = (&logits / temperature)?;
                 let probs = candle_nn::ops::softmax_last_dim(&logits)?;
                 let mut probs: Vec<f32> = probs.to_vec1()?;
-                let argsort_indices = (0..probs.len()).collect::<Vec<_>>();
                 match self.sampling_method {
-                    SamplingMethod::Multinomial => self.sample_multinomial(&mut probs, argsort_indices)?,
+                    SamplingMethod::Multinomial => {
+                        let mut argsort_indices = (0..probs.len()).collect::<Vec<_>>();
+                        // Sort by descending probability.
+                        argsort_indices.sort_by(|&i, &j| probs[j].partial_cmp(&probs[i]).unwrap());
+                        self.sample_multinomial(&mut probs, argsort_indices)?
+                    }
                     SamplingMethod::TopP(top_p) => {
                         if top_p <= 0.0 || top_p >= 1.0 {
+                            let mut argsort_indices = (0..probs.len()).collect::<Vec<_>>();
+                            // Sort by descending probability.
+                            argsort_indices
+                                .sort_by(|&i, &j| probs[j].partial_cmp(&probs[i]).unwrap());
                             // simply sample from the predicted probability distribution
                             self.sample_multinomial(&mut probs, argsort_indices)?
                         } else {
