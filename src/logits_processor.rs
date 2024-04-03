@@ -178,7 +178,6 @@ impl LogitsProcessor {
         let distr = WeightedIndex::new(&*probs).map_err(Error::wrap)?;
         let next_token = distr.sample(&mut self.rng); // "Find the first item which has a weight *higher* than the chosen weight."
         let logprob = probs[next_token].log(10.0);
-        let tok = probs[next_token];
 
         let mut argsort_indices_sorted = argsort_indices.clone();
         argsort_indices_sorted.sort_by(|a, b| probs[*a].partial_cmp(&probs[*b]).unwrap());
