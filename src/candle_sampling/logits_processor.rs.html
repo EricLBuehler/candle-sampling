@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/logits_processor.rs`."><title>logits_processor.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="candle_sampling" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0 (aedd173a2 2024-03-17)" data-channel="1.77.0" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/logits_processor.rs`."><title>logits_processor.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="candle_sampling" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.1 (7cf61ebde 2024-03-27)" data-channel="1.77.1" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
             <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../candle_sampling/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
@@ -375,25 +375,6 @@
 <a href="#373" id="373">373</a>
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
@@ -568,48 +549,28 @@
         })
     }
 
-    <span class="kw">fn </span>sample_multinomial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
+    <span class="kw">fn </span>sample_multinomial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, argsort_indices: Vec&lt;usize&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
         <span class="self">self</span>.apply_logit_bias(probs)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>distr = WeightedIndex::new(<span class="kw-2">&amp;*</span>probs).map_err(Error::wrap)<span class="question-mark">?</span>;
         <span class="kw">let </span>next_token = distr.sample(<span class="kw-2">&amp;mut </span><span class="self">self</span>.rng); <span class="comment">// "Find the first item which has a weight *higher* than the chosen weight."
         </span><span class="kw">let </span>logprob = probs[next_token].log(<span class="number">10.0</span>);
-        <span class="kw">let </span>tok = probs[next_token];
 
-        <span class="kw">let </span><span class="kw-2">mut </span>sorted = probs.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        <span class="comment">// Where the next token is in the sorted
-        </span><span class="kw">let </span>next_token_index = sorted
-            .binary_search_by(|w| {
-                <span class="kw">if </span><span class="kw-2">*</span>w &lt;= tok {
-                    Ordering::Less
-                } <span class="kw">else </span>{
-                    Ordering::Greater
-                }
-            })
-            .unwrap_err();
+        <span class="kw">let </span><span class="kw-2">mut </span>argsort_indices_sorted = argsort_indices.clone();
+        argsort_indices_sorted.sort_by(|a, b| probs[<span class="kw-2">*</span>a].partial_cmp(<span class="kw-2">&amp;</span>probs[<span class="kw-2">*</span>b]).unwrap());
         <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range =
-            next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..next_token_index;
+            <span class="number">0</span>..<span class="self">self</span>.top_n_logprobs;
         <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks_range);
         <span class="comment">// The top n's values
-        </span><span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
+        </span><span class="kw">let </span>top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
             .iter()
-            .map(|x| x.log(<span class="number">10.0</span>))
+            .map(|x| probs[<span class="kw-2">*</span>x].log(<span class="number">10.0</span>))
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="comment">// Find where they actually are in the logits
         </span><span class="kw">let </span><span class="kw-2">mut </span>top_n_toks = Vec::new();
-        <span class="kw">for </span>val <span class="kw">in </span>top_n_logprobs.iter() {
-            <span class="kw">let </span>idx = probs
-                .binary_search_by(|w| {
-                    <span class="kw">if </span><span class="kw-2">*</span>w &lt;= <span class="kw-2">*</span>val {
-                        Ordering::Less
-                    } <span class="kw">else </span>{
-                        Ordering::Greater
-                    }
-                })
-                .unwrap_err();
-            top_n_toks.push(idx <span class="kw">as </span>u32);
+        <span class="kw">for </span>val <span class="kw">in </span>top_n_toks_range {
+            top_n_toks.push(argsort_indices[val]);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
@@ -617,13 +578,13 @@
         <span class="kw">for </span>tok <span class="kw">in </span><span class="kw-2">&amp;</span>top_n_toks {
             bytes.push(
                 <span class="self">self</span>.tokenizer
-                    .decode(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>tok], <span class="bool-val">true</span>)
+                    .decode(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>tok <span class="kw">as </span>u32], <span class="bool-val">true</span>)
                     .map_err(|x| Error::Msg(x.to_string()))<span class="question-mark">?</span>,
             );
         }
         <span class="kw">let </span>top_logprobs = zip(bytes, zip(top_n_toks, top_n_logprobs))
             .map(|(bytes, (token, logprob))| TopLogprob {
-                token,
+                token: token <span class="kw">as </span>u32,
                 logprob,
                 bytes,
             })
@@ -661,7 +622,7 @@
         }
 
         <span class="comment">// Sample with clamped probabilities.
-        </span><span class="self">self</span>.sample_multinomial(probs)
+        </span><span class="self">self</span>.sample_multinomial(probs, argsort_indices)
     }
 
     <span class="kw">fn </span>sample_topk(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_k: usize) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
@@ -678,7 +639,7 @@
         }
 
         <span class="comment">// Sample with clamped probabilities.
-        </span><span class="self">self</span>.sample_multinomial(probs)
+        </span><span class="self">self</span>.sample_multinomial(probs, argsort_indices)
     }
 
     <span class="kw">fn </span>sample_topkp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, top_k: usize, top_p: f32) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
@@ -695,7 +656,7 @@
         }
 
         <span class="kw">if </span>top_p &lt;= <span class="number">0.0 </span>|| top_p &gt;= <span class="number">1.0 </span>{
-            <span class="kw">return </span><span class="self">self</span>.sample_multinomial(probs);
+            <span class="kw">return </span><span class="self">self</span>.sample_multinomial(probs, argsort_indices);
         }
         <span class="comment">// TOP P
         // top-p sampling (or "nucleus sampling") samples from the smallest set of
@@ -717,7 +678,7 @@
         }
 
         <span class="comment">// Sample with clamped probabilities.
-        </span><span class="self">self</span>.sample_multinomial(probs)
+        </span><span class="self">self</span>.sample_multinomial(probs, argsort_indices)
     }
 
     <span class="kw">fn </span>apply_repeat_presence_penalty(
@@ -767,12 +728,13 @@
                 <span class="kw">let </span>logits = (<span class="kw-2">&amp;</span>logits / temperature)<span class="question-mark">?</span>;
                 <span class="kw">let </span>probs = candle_nn::ops::softmax_last_dim(<span class="kw-2">&amp;</span>logits)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>probs: Vec&lt;f32&gt; = probs.to_vec1()<span class="question-mark">?</span>;
+                <span class="kw">let </span>argsort_indices = (<span class="number">0</span>..probs.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
                 <span class="kw">match </span><span class="self">self</span>.sampling_method {
-                    SamplingMethod::Multinomial =&gt; <span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs)<span class="question-mark">?</span>,
+                    SamplingMethod::Multinomial =&gt; <span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs, argsort_indices)<span class="question-mark">?</span>,
                     SamplingMethod::TopP(top_p) =&gt; {
                         <span class="kw">if </span>top_p &lt;= <span class="number">0.0 </span>|| top_p &gt;= <span class="number">1.0 </span>{
                             <span class="comment">// simply sample from the predicted probability distribution
-                            </span><span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs)<span class="question-mark">?
+                            </span><span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs, argsort_indices)<span class="question-mark">?
                         </span>} <span class="kw">else </span>{
                             <span class="comment">// top-p (nucleus) sampling, clamping the least likely tokens to zero
                             </span><span class="self">self</span>.sample_topp(<span class="kw-2">&amp;mut </span>probs, top_p <span class="kw">as </span>f32)<span class="question-mark">?
