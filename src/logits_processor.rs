@@ -195,6 +195,7 @@ impl LogitsProcessor {
         // These are where the top n are
         let top_n_toks_range =
             next_token_index.saturating_sub(self.top_n_logprobs)..next_token_index;
+        dbg!(&top_n_toks_range);
         // The top n's values
         let top_n_logprobs = sorted[top_n_toks_range]
             .iter()
@@ -216,6 +217,7 @@ impl LogitsProcessor {
         }
 
         let mut bytes = Vec::new();
+        dbg!(&top_n_toks);
         for tok in &top_n_toks {
             bytes.push(
                 self.tokenizer
@@ -231,6 +233,7 @@ impl LogitsProcessor {
             })
             .collect::<Vec<_>>();
 
+        dbg!(next_token);
         Ok(Logprobs {
             token: next_token as u32,
             logprob,
