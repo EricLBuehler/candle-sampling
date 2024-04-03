@@ -362,14 +362,7 @@
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
 <a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
 <span class="kw">use </span>rand::{
@@ -486,7 +479,6 @@
         </span>argsort_indices_sorted.sort_by(|a, b| probs[<span class="kw-2">*</span>b].partial_cmp(<span class="kw-2">&amp;</span>probs[<span class="kw-2">*</span>a]).unwrap());
         <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range = <span class="number">0</span>..<span class="self">self</span>.top_n_logprobs;
-        <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks_range);
         <span class="comment">// The top n's values
         </span><span class="kw">let </span>top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
             .iter()
@@ -499,7 +491,6 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
-        <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks);
         <span class="kw">for </span>tok <span class="kw">in </span><span class="kw-2">&amp;</span>top_n_toks {
             bytes.push(
                 <span class="self">self</span>.tokenizer
@@ -514,8 +505,6 @@
                 bytes,
             })
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-        <span class="macro">dbg!</span>(next_token);
 
         <span class="prelude-val">Ok</span>(Logprobs {
             token: next_token <span class="kw">as </span>u32,
@@ -544,7 +533,6 @@
         </span>argsort_indices_sorted.sort_by(|a, b| probs[<span class="kw-2">*</span>b].partial_cmp(<span class="kw-2">&amp;</span>probs[<span class="kw-2">*</span>a]).unwrap());
         <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range = <span class="number">0</span>..<span class="self">self</span>.top_n_logprobs;
-        <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks_range);
         <span class="comment">// The top n's values
         </span><span class="kw">let </span>top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
             .iter()
@@ -557,7 +545,6 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
-        <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks);
         <span class="kw">for </span>tok <span class="kw">in </span><span class="kw-2">&amp;</span>top_n_toks {
             bytes.push(
                 <span class="self">self</span>.tokenizer
@@ -573,7 +560,6 @@
             })
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="macro">dbg!</span>(next_token);
         <span class="prelude-val">Ok</span>(Logprobs {
             token: next_token <span class="kw">as </span>u32,
             logprob,
