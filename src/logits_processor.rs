@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, iter::zip};
+use std::{collections::HashMap, iter::zip};
 
 use candle_core::{bail, DType, Error, Result, Tensor};
 use rand::{
@@ -115,7 +115,6 @@ impl LogitsProcessor {
         argsort_indices_sorted.sort_by(|a, b| probs[*b].partial_cmp(&probs[*a]).unwrap());
         // These are where the top n are
         let top_n_toks_range = 0..self.top_n_logprobs;
-        dbg!(&top_n_toks_range);
         // The top n's values
         let top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
             .iter()
@@ -128,7 +127,6 @@ impl LogitsProcessor {
         }
 
         let mut bytes = Vec::new();
-        dbg!(&top_n_toks);
         for tok in &top_n_toks {
             bytes.push(
                 self.tokenizer
@@ -143,8 +141,6 @@ impl LogitsProcessor {
                 bytes,
             })
             .collect::<Vec<_>>();
-
-        dbg!(next_token);
 
         Ok(Logprobs {
             token: next_token as u32,
@@ -173,7 +169,6 @@ impl LogitsProcessor {
         argsort_indices_sorted.sort_by(|a, b| probs[*b].partial_cmp(&probs[*a]).unwrap());
         // These are where the top n are
         let top_n_toks_range = 0..self.top_n_logprobs;
-        dbg!(&top_n_toks_range);
         // The top n's values
         let top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
             .iter()
@@ -186,7 +181,6 @@ impl LogitsProcessor {
         }
 
         let mut bytes = Vec::new();
-        dbg!(&top_n_toks);
         for tok in &top_n_toks {
             bytes.push(
                 self.tokenizer
@@ -202,7 +196,6 @@ impl LogitsProcessor {
             })
             .collect::<Vec<_>>();
 
-        dbg!(next_token);
         Ok(Logprobs {
             token: next_token as u32,
             logprob,
