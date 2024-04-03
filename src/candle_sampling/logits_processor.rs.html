@@ -359,6 +359,16 @@
 <a href="#357" id="357">357</a>
 <a href="#358" id="358">358</a>
 <a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
@@ -475,8 +485,7 @@
         <span class="comment">// Sort by descending prob
         </span>argsort_indices_sorted.sort_by(|a, b| probs[<span class="kw-2">*</span>b].partial_cmp(<span class="kw-2">&amp;</span>probs[<span class="kw-2">*</span>a]).unwrap());
         <span class="comment">// These are where the top n are
-        </span><span class="kw">let </span>top_n_toks_range =
-            <span class="number">0</span>..<span class="self">self</span>.top_n_logprobs;
+        </span><span class="kw">let </span>top_n_toks_range = <span class="number">0</span>..<span class="self">self</span>.top_n_logprobs;
         <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks_range);
         <span class="comment">// The top n's values
         </span><span class="kw">let </span>top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
@@ -519,7 +528,11 @@
         })
     }
 
-    <span class="kw">fn </span>sample_multinomial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;, argsort_indices: Vec&lt;usize&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
+    <span class="kw">fn </span>sample_multinomial(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        probs: <span class="kw-2">&amp;mut </span>Vec&lt;f32&gt;,
+        argsort_indices: Vec&lt;usize&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Logprobs&gt; {
         <span class="self">self</span>.apply_logit_bias(probs)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>distr = WeightedIndex::new(<span class="kw-2">&amp;*</span>probs).map_err(Error::wrap)<span class="question-mark">?</span>;
@@ -530,8 +543,7 @@
         <span class="comment">// Sort by descending prob
         </span>argsort_indices_sorted.sort_by(|a, b| probs[<span class="kw-2">*</span>b].partial_cmp(<span class="kw-2">&amp;</span>probs[<span class="kw-2">*</span>a]).unwrap());
         <span class="comment">// These are where the top n are
-        </span><span class="kw">let </span>top_n_toks_range =
-            <span class="number">0</span>..<span class="self">self</span>.top_n_logprobs;
+        </span><span class="kw">let </span>top_n_toks_range = <span class="number">0</span>..<span class="self">self</span>.top_n_logprobs;
         <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks_range);
         <span class="comment">// The top n's values
         </span><span class="kw">let </span>top_n_logprobs = argsort_indices_sorted[top_n_toks_range.clone()]
@@ -696,11 +708,19 @@
                 <span class="kw">let </span>logits = (<span class="kw-2">&amp;</span>logits / temperature)<span class="question-mark">?</span>;
                 <span class="kw">let </span>probs = candle_nn::ops::softmax_last_dim(<span class="kw-2">&amp;</span>logits)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>probs: Vec&lt;f32&gt; = probs.to_vec1()<span class="question-mark">?</span>;
-                <span class="kw">let </span>argsort_indices = (<span class="number">0</span>..probs.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
                 <span class="kw">match </span><span class="self">self</span>.sampling_method {
-                    SamplingMethod::Multinomial =&gt; <span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs, argsort_indices)<span class="question-mark">?</span>,
+                    SamplingMethod::Multinomial =&gt; {
+                        <span class="kw">let </span><span class="kw-2">mut </span>argsort_indices = (<span class="number">0</span>..probs.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                        <span class="comment">// Sort by descending probability.
+                        </span>argsort_indices.sort_by(|<span class="kw-2">&amp;</span>i, <span class="kw-2">&amp;</span>j| probs[j].partial_cmp(<span class="kw-2">&amp;</span>probs[i]).unwrap());
+                        <span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs, argsort_indices)<span class="question-mark">?
+                    </span>}
                     SamplingMethod::TopP(top_p) =&gt; {
                         <span class="kw">if </span>top_p &lt;= <span class="number">0.0 </span>|| top_p &gt;= <span class="number">1.0 </span>{
+                            <span class="kw">let </span><span class="kw-2">mut </span>argsort_indices = (<span class="number">0</span>..probs.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                            <span class="comment">// Sort by descending probability.
+                            </span>argsort_indices
+                                .sort_by(|<span class="kw-2">&amp;</span>i, <span class="kw-2">&amp;</span>j| probs[j].partial_cmp(<span class="kw-2">&amp;</span>probs[i]).unwrap());
                             <span class="comment">// simply sample from the predicted probability distribution
                             </span><span class="self">self</span>.sample_multinomial(<span class="kw-2">&amp;mut </span>probs, argsort_indices)<span class="question-mark">?
                         </span>} <span class="kw">else </span>{
