@@ -180,7 +180,8 @@ impl LogitsProcessor {
         let logprob = probs[next_token].log(10.0);
 
         let mut argsort_indices_sorted = argsort_indices.clone();
-        argsort_indices_sorted.sort_by(|a, b| probs[*a].partial_cmp(&probs[*b]).unwrap());
+        // Sort by descending prob
+        argsort_indices_sorted.sort_by(|a, b| probs[*b].partial_cmp(&probs[*a]).unwrap());
         // These are where the top n are
         let top_n_toks_range =
             0..self.top_n_logprobs;
@@ -282,13 +283,10 @@ impl LogitsProcessor {
             return self.sample_multinomial(probs, argsort_indices);
         }
         // TOP P
+
         // top-p sampling (or "nucleus sampling") samples from the smallest set of
         // tokens that exceed probability top_p. This way we never sample tokens that
         // have very low probabilities and are less likely to go "off the rails".
-        let mut argsort_indices = (0..probs.len()).collect::<Vec<_>>();
-
-        // Sort by descending probability.
-        argsort_indices.sort_by(|&i, &j| probs[j].partial_cmp(&probs[i]).unwrap());
 
         // Clamp smaller probabilities to zero.
         let mut cumsum = 0.;
