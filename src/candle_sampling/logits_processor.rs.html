@@ -391,6 +391,9 @@
 <a href="#389" id="389">389</a>
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashMap, iter::zip};
 
 <span class="kw">use </span>candle_core::{bail, DType, Error, <span class="prelude-ty">Result</span>, Tensor};
@@ -588,6 +591,7 @@
         <span class="comment">// These are where the top n are
         </span><span class="kw">let </span>top_n_toks_range =
             next_token_index.saturating_sub(<span class="self">self</span>.top_n_logprobs)..next_token_index;
+        <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks_range);
         <span class="comment">// The top n's values
         </span><span class="kw">let </span>top_n_logprobs = sorted[top_n_toks_range]
             .iter()
@@ -609,6 +613,7 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = Vec::new();
+        <span class="macro">dbg!</span>(<span class="kw-2">&amp;</span>top_n_toks);
         <span class="kw">for </span>tok <span class="kw">in </span><span class="kw-2">&amp;</span>top_n_toks {
             bytes.push(
                 <span class="self">self</span>.tokenizer
@@ -624,6 +629,7 @@
             })
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
+        <span class="macro">dbg!</span>(next_token);
         <span class="prelude-val">Ok</span>(Logprobs {
             token: next_token <span class="kw">as </span>u32,
             logprob,
